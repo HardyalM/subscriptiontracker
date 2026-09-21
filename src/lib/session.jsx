@@ -113,6 +113,18 @@ export function SessionProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: {
+        // Without this, the confirmation link points at the project's Site
+        // URL, which defaults to http://localhost:3000 — the wrong port for
+        // a Vite app, so the link lands on nothing. Sending the current
+        // origin makes the link follow wherever the app is actually served,
+        // in dev and in production alike.
+        //
+        // Supabase still checks this against the project's allow-list, so
+        // the origin must also be listed under Authentication → URL
+        // Configuration.
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     })
     if (error) return { error, needsConfirmation: false }
     return { error: null, needsConfirmation: !data.session }
