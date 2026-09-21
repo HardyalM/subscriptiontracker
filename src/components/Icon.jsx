@@ -136,6 +136,24 @@ export function IconSignOut({ className }) {
   )
 }
 
+export function IconSearch({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <circle cx="8.8" cy="8.8" r="5.3" />
+      <path d="M12.7 12.7L17 17" />
+    </svg>
+  )
+}
+
+export function IconUpload({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M10 13V4m0 0L6.5 7.5M10 4l3.5 3.5" />
+      <path d="M4 14.5v1A1.5 1.5 0 005.5 17h9a1.5 1.5 0 001.5-1.5v-1" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   useCommitments,
   useSaveCommitment,
@@ -6,11 +6,13 @@ import {
   useRecordDecision,
   useReplaceCommitments,
   useClearCommitments,
+  useImportCommitments,
 } from './lib/commitmentQueries.js'
+import { filterAndSortCommitments, DEFAULT_FILTERS } from './lib/commitmentFilters.js'
 import { getRenewalCheckpointItems } from './lib/calculations.js'
 import { notifyIfDue } from './lib/notifications.js'
 import { buildDemoCommitments } from './lib/demoData.js'
-import { IconLogo, IconPlus } from './components/Icon.jsx'
+import { IconLogo, IconPlus, IconUpload } from './components/Icon.jsx'
 import HeadlineExposure from './components/HeadlineExposure.jsx'
 import RenewalCheckpoint from './components/RenewalCheckpoint.jsx'
 import Dashboard from './components/Dashboard.jsx'
@@ -20,6 +22,9 @@ import ExportButton from './components/ExportButton.jsx'
 import SettingsMenu from './components/SettingsMenu.jsx'
 import Modal from './components/Modal.jsx'
 import ImportLocalData from './components/ImportLocalData.jsx'
+import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
+import CsvImport from './components/manage/CsvImport.jsx'
+import ExposureTrend from './components/manage/ExposureTrend.jsx'
 
 export default function App() {
   const { data: commitments = [], isPending, isError, refetch } = useCommitments()
@@ -28,8 +33,14 @@ export default function App() {
   const recordDecision = useRecordDecision()
   const replaceCommitments = useReplaceCommitments()
   const clearCommitments = useClearCommitments()
+  const importCommitments = useImportCommitments()
   const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
+
+  // Derived state over the cache — no refetch, no round-trip per keystroke.
+  const visible = useMemo(() => filterAndSortCommitments(commitments, filters), [commitments, filters])
 
   const editingCommitment = commitments.find((c) => c.id === editingId) || null
 
@@ -128,14 +139,25 @@ export default function App() {
 
         <CategoryBreakdown commitments={commitments} />
 
+        <ExposureTrend commitments={commitments} />
+
         <div className="space-y-2">
-          <button
-            onClick={() => setShowForm(true)}
-            className="group flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600"
-          >
-            <IconPlus className="h-4 w-4" />
-            Add a subscription or BNPL commitment
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              onClick={() => setShowForm(true)}
+              className="group flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600"
+            >
+              <IconPlus className="h-4 w-4" />
+              Add a subscription or BNPL commitment
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 px-5 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600 sm:py-0"
+            >
+              <IconUpload className="h-4 w-4" />
+              Import CSV
+            </button>
+          </div>
           {commitments.length === 0 && !isPending && (
             <p className="text-center text-xs text-ink-muted">
               New here?{' '}
@@ -147,7 +169,16 @@ export default function App() {
           )}
         </div>
 
-        <Dashboard commitments={commitments} onEdit={handleEdit} onToggleStatus={handleToggleStatus} />
+        {commitments.length > 0 && (
+          <CommitmentFilters
+            filters={filters}
+            onChange={setFilters}
+            shown={visible.length}
+            total={commitments.length}
+          />
+        )}
+
+        <Dashboard commitments={visible} onEdit={handleEdit} onToggleStatus={handleToggleStatus} />
 
         <footer className="flex flex-col items-center gap-1 pt-4 text-center text-xs text-ink-muted">
           <p>
@@ -156,6 +187,17 @@ export default function App() {
           <p className="text-ink-muted/70">Settings (top right) has example data and a reset if you need one.</p>
         </footer>
       </main>
+
+      <Modal open={showImport} labelledBy="csv-import-heading" onClose={() => setShowImport(false)}>
+        <CsvImport
+          isImporting={importCommitments.isPending}
+          onClose={() => setShowImport(false)}
+          onImport={async (rows) => {
+            await importCommitments.mutateAsync(rows)
+            setShowImport(false)
+          }}
+        />
+      </Modal>
 
       <Modal
         open={showForm || Boolean(editingCommitment)}

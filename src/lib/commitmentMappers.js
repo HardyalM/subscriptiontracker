@@ -27,6 +27,9 @@ export function toCommitment(row) {
     instalmentsRemaining: toNullableNumber(row.instalments_remaining),
     status: row.status,
     category: row.category,
+    bnplMode: row.bnpl_mode ?? 'fixed',
+    createdAt: row.created_at ?? null,
+    cancelledAt: row.cancelled_at ?? null,
     decisionLog: toDecisionLog(row.decision_log),
   }
 }
@@ -77,6 +80,8 @@ export function toCommitmentRow(commitment, workspaceId) {
     instalments_remaining: isBnpl ? toNumber(commitment.instalmentsRemaining) : null,
     status: commitment.status ?? 'active',
     category: commitment.category,
+    // Pinned to 'fixed' for subscriptions by commitments_bnpl_mode_matches_type.
+    bnpl_mode: isBnpl ? commitment.bnplMode || 'fixed' : 'fixed',
   }
 }
 

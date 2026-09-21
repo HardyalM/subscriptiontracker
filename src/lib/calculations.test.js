@@ -20,6 +20,8 @@ import {
   advanceDate,
   applyKeepDecision,
   formatGBP,
+  applyKeepDecision,
+  exposureTrend,
 } from './calculations.js'
 
 const today = new Date('2026-09-21')
@@ -232,5 +234,89 @@ describe('formatGBP', () => {
   it('formats whole pounds without decimals, fractional with 2dp', () => {
     expect(formatGBP(156)).toBe('£156')
     expect(formatGBP(12.99)).toBe('£12.99')
+  })
+})
+
+// --- Phase 4 additions -----------------------------------------------------
+// The 33 assertions above are the standing regression gate and are untouched.
+
+describe('applyKeepDecision — recurring BNPL', () => {
+  const base = {
+    type: 'bnpl',
+    frequency: 'monthly',
+    nextPaymentDate: '2026-09-21',
+    instalmentsRemaining: 1,
+  }
+
+  it('a fixed plan still decrements to zero and stops', () => {
+    expect(applyKeepDecision({ ...base, bnplMode: 'fixed' }).instalmentsRemaining).toBe(0)
+  })
+
+  it('treats a missing bnplMode as fixed', () => {
+    // Every commitment created before this column existed.
+    expect(applyKeepDecision(base).instalmentsRemaining).toBe(0)
+  })
+
+  it('a recurring plan does not come to rest at zero', () => {
+    expect(applyKeepDecision({ ...base, bnplMode: 'recurring' }).instalmentsRemaining).toBe(1)
+  })
+
+  it('a recurring plan mid-block still decrements normally', () => {
+    const patch = applyKeepDecision({ ...base, instalmentsRemaining: 4, bnplMode: 'recurring' })
+    expect(patch.instalmentsRemaining).toBe(3)
+  })
+
+  it('advances the date either way', () => {
+    expect(applyKeepDecision({ ...base, bnplMode: 'recurring' }).nextPaymentDate).toBe('2026-10-21')
+    expect(applyKeepDecision({ ...base, bnplMode: 'fixed' }).nextPaymentDate).toBe('2026-10-21')
+  })
+})
+
+describe('exposureTrend', () => {
+  const monthly = (over) => ({
+    type: 'subscription',
+    frequency: 'monthly',
+    costPerPayment: 10,
+    status: 'active',
+    decisionLog: [],
+    ...over,
+  })
+
+  it('returns one point per month, oldest first', () => {
+    const points = exposureTrend([], 6, new Date('2026-09-21'))
+    expect(points).toHaveLength(6)
+    expect(points.map((p) => p.month)).toEqual([
+      '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09',
+    ])
+  })
+
+  it('counts a commitment only from the month it was created', () => {
+    const points = exposureTrend([monthly({ createdAt: '2026-08-15' })], 3, new Date('2026-09-21'))
+    expect(points.map((p) => p.exposure)).toEqual([0, 120, 120])
+  })
+
+  it('drops a commitment from the month it was cancelled', () => {
+    const c = monthly({ createdAt: '2026-07-01', status: 'cancelled', cancelledAt: '2026-08-10' })
+    const points = exposureTrend([c], 3, new Date('2026-09-21'))
+    expect(points.map((p) => p.exposure)).toEqual([120, 0, 0])
+  })
+
+  it('excludes a cancelled commitment with no cancellation date', () => {
+    // Rather than inventing one and drawing a confidently wrong line.
+    const c = monthly({ createdAt: '2026-07-01', status: 'cancelled', cancelledAt: null })
+    expect(exposureTrend([c], 3, new Date('2026-09-21')).every((p) => p.exposure === 0)).toBe(true)
+  })
+
+  it('sums several commitments in the same month', () => {
+    const points = exposureTrend(
+      [monthly({ createdAt: '2026-01-01' }), monthly({ createdAt: '2026-01-01', costPerPayment: 5 })],
+      1,
+      new Date('2026-09-21'),
+    )
+    expect(points[0].exposure).toBe(180)
+  })
+
+  it('counts a commitment with no createdAt as always present', () => {
+    expect(exposureTrend([monthly({})], 2, new Date('2026-09-21')).map((p) => p.exposure)).toEqual([120, 120])
   })
 })

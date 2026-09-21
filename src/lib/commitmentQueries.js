@@ -89,7 +89,14 @@ export function useToggleCommitmentStatus() {
   return useCommitmentMutation(
     async (commitment) => {
       const next = commitment.status === 'active' ? 'cancelled' : 'active'
-      const { error } = await supabase.from('commitments').update({ status: next }).eq('id', commitment.id)
+      // cancelled_at is what makes the trend chart able to say when a
+      // commitment stopped counting; clearing it on reactivation keeps the
+      // commitments_cancelled_at_matches_status constraint satisfied.
+      const columns = {
+        status: next,
+        cancelled_at: next === 'cancelled' ? new Date().toISOString() : null,
+      }
+      const { error } = await supabase.from('commitments').update(columns).eq('id', commitment.id)
       if (error) throw error
     },
     {
@@ -180,11 +187,11 @@ export function useClearCommitments() {
 }
 
 /**
- * The one-time migration of whatever is already in this browser's
- * localStorage. Appends rather than replaces, so running it against a
- * workspace that already has data cannot destroy anything.
+ * Bulk insert. Used by both the one-time localStorage migration and the CSV
+ * importer. Appends rather than replaces, so neither can destroy data that
+ * is already there.
  */
-export function useImportLocalCommitments() {
+export function useImportCommitments() {
   return useCommitmentMutation(async (commitments, workspaceId) => {
     if (commitments.length === 0) return
 

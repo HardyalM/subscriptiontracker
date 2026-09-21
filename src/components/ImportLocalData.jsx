@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { readLocalCommitments, clearLocalCommitments } from '../lib/storage.js'
-import { useImportLocalCommitments } from '../lib/commitmentQueries.js'
+import { useImportCommitments } from '../lib/commitmentQueries.js'
 import { IconDownload, IconX } from './Icon.jsx'
 
 /**
@@ -17,7 +17,7 @@ export default function ImportLocalData() {
   const [local] = useState(readLocalCommitments)
   const [dismissed, setDismissed] = useState(false)
   const [done, setDone] = useState(0)
-  const importer = useImportLocalCommitments()
+  const importer = useImportCommitments()
 
   if (done > 0) {
     return (

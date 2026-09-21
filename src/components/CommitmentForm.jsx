@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CATEGORIES, FREQUENCIES, defaultCategoryFor } from '../lib/constants.js'
 import { newId } from '../lib/storage.js'
+import { validateCommitment, normaliseCommitment } from '../lib/commitmentValidation.js'
 import { IconX } from './Icon.jsx'
 
 const emptyDraft = (type = 'subscription') => ({
@@ -12,6 +13,7 @@ const emptyDraft = (type = 'subscription') => ({
   nextPaymentDate: '',
   totalOriginalAmount: '',
   instalmentsRemaining: '',
+  bnplMode: 'fixed',
   status: 'active',
   category: defaultCategoryFor(type),
 })
@@ -25,6 +27,7 @@ function toDraft(record) {
     ...record,
     totalOriginalAmount: record.totalOriginalAmount ?? '',
     instalmentsRemaining: record.instalmentsRemaining ?? '',
+    bnplMode: record.bnplMode ?? 'fixed',
   }
 }
 
@@ -56,26 +59,15 @@ export default function CommitmentForm({ editingCommitment, onSave, onCancel }) 
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!draft.name.trim()) return setError('Give it a name so you can recognise it later.')
-    const cost = Number(draft.costPerPayment)
-    if (!draft.costPerPayment || Number.isNaN(cost) || cost <= 0) {
-      return setError('Cost per payment needs to be a number greater than 0.')
-    }
-    if (!draft.nextPaymentDate) return setError('Next payment / renewal date is required.')
-    if (draft.type === 'bnpl') {
-      const remaining = Number(draft.instalmentsRemaining)
-      if (draft.instalmentsRemaining === '' || Number.isNaN(remaining) || remaining < 0) {
-        return setError('Instalments remaining needs to be 0 or more.')
-      }
-    }
+    // The CSV importer runs these exact rules — see commitmentValidation.js.
+    const problem = validateCommitment(draft)
+    if (problem) return setError(problem)
 
     setError('')
     const record = {
       ...draft,
+      ...normaliseCommitment(draft),
       id: draft.id || newId(),
-      costPerPayment: cost,
-      totalOriginalAmount: draft.totalOriginalAmount === '' ? null : Number(draft.totalOriginalAmount),
-      instalmentsRemaining: draft.type === 'bnpl' ? Number(draft.instalmentsRemaining) : null,
       decisionLog: draft.decisionLog || [],
     }
     onSave(record)
@@ -231,6 +223,25 @@ export default function CommitmentForm({ editingCommitment, onSave, onCancel }) 
                 value={draft.instalmentsRemaining}
                 onChange={(e) => update('instalmentsRemaining', e.target.value)}
               />
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass} htmlFor="bnplMode">
+                Plan type
+              </label>
+              <select
+                id="bnplMode"
+                className={inputClass}
+                value={draft.bnplMode || 'fixed'}
+                onChange={(e) => update('bnplMode', e.target.value)}
+              >
+                <option value="fixed">Fixed — ends when the instalments run out</option>
+                <option value="recurring">Recurring — an open-ended credit line</option>
+              </select>
+              <p className="mt-1.5 text-xs leading-snug text-ink-muted">
+                {draft.bnplMode === 'recurring'
+                  ? "Keeps rolling on to the next payment, the way a subscription does."
+                  : 'Counts down and finishes.'}
+              </p>
             </div>
           </div>
         )}

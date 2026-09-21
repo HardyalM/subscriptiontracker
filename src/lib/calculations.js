@@ -14,6 +14,7 @@ import { RENEWAL_WINDOW_DAYS } from './constants.js'
  * @property {string} nextPaymentDate   ISO date string, e.g. "2026-09-28"
  * @property {number} [totalOriginalAmount]   BNPL only
  * @property {number} [instalmentsRemaining]  BNPL only
+ * @property {'fixed'|'recurring'} [bnplMode]  BNPL only; absent means 'fixed'
  * @property {'active'|'cancelled'} status
  * @property {string} category
  * @property {{date: string, decision: 'kept'|'reconsidered', amount?: number}[]} decisionLog
@@ -245,7 +246,17 @@ export function applyKeepDecision(commitment) {
   }
 
   // BNPL: one instalment further along.
-  const remaining = Math.max(0, (Number(commitment.instalmentsRemaining) || 0) - 1)
+  //
+  // A 'recurring' plan is an open-ended credit line rather than a fixed
+  // block of instalments, so it never comes to rest at zero — when the last
+  // instalment of a block is paid, the next block starts. Anything not
+  // explicitly marked recurring is treated as 'fixed', which is both the
+  // column default and the behaviour every existing commitment already has.
+  const isRecurring = commitment.bnplMode === 'recurring'
+  const current = Number(commitment.instalmentsRemaining) || 0
+  const decremented = Math.max(0, current - 1)
+  const remaining = isRecurring && decremented === 0 ? current : decremented
+
   const patch = { instalmentsRemaining: remaining }
   if (commitment.frequency === 'weekly' || commitment.frequency === 'monthly') {
     patch.nextPaymentDate = advanceDate(commitment.nextPaymentDate, commitment.frequency)
@@ -304,6 +315,57 @@ export function reconsideredSavingsTotal(commitments) {
     }
   }
   return total
+}
+
+/**
+ * Total annualised exposure at the end of each of the last `monthsBack`
+ * months, oldest first — the series behind the trend chart.
+ *
+ * A commitment counts towards a month if it existed by the end of it
+ * (`createdAt`) and had not been cancelled by then (`cancelledAt`). This is
+ * deliberately computed here rather than in a Postgres view: the weekly/
+ * monthly annualisation multipliers live in annualisedCost(), and a view
+ * would have to restate them in SQL, leaving two copies of the same rule to
+ * drift apart.
+ *
+ * Honest limitation: a commitment cancelled before `cancelled_at` existed
+ * has no cancellation date, so it is left out of every month rather than
+ * being given an invented one. Better a slightly short series than a
+ * confidently wrong one.
+ *
+ * @returns {{month: string, exposure: number}[]} month as 'YYYY-MM'
+ */
+export function exposureTrend(commitments, monthsBack = 12, today = new Date()) {
+  const anchor = toMidnight(today)
+  const points = []
+
+  for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
+    // End of the month that many months back — day 0 of the following month.
+    const end = new Date(anchor.getFullYear(), anchor.getMonth() - offset + 1, 0)
+    const month = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}`
+
+    const exposure = commitments.reduce((sum, c) => {
+      if (!countsInMonth(c, end)) return sum
+      return sum + (exposureFor(c) || 0)
+    }, 0)
+
+    points.push({ month, exposure })
+  }
+
+  return points
+}
+
+function countsInMonth(commitment, monthEnd) {
+  const created = commitment.createdAt ? toMidnight(commitment.createdAt) : null
+  if (created && created.getTime() > monthEnd.getTime()) return false
+
+  if (commitment.status === 'cancelled') {
+    // No cancellation date recorded — see the note on exposureTrend.
+    if (!commitment.cancelledAt) return false
+    if (toMidnight(commitment.cancelledAt).getTime() <= monthEnd.getTime()) return false
+  }
+
+  return true
 }
 
 export function formatGBP(amount) {
