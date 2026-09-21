@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useCommitments } from './lib/storage.js'
-import { exposureFor, applyKeepDecision, getRenewalCheckpointItems } from './lib/calculations.js'
+import {
+  useCommitments,
+  useSaveCommitment,
+  useToggleCommitmentStatus,
+  useRecordDecision,
+  useReplaceCommitments,
+  useClearCommitments,
+} from './lib/commitmentQueries.js'
+import { getRenewalCheckpointItems } from './lib/calculations.js'
 import { notifyIfDue } from './lib/notifications.js'
 import { buildDemoCommitments } from './lib/demoData.js'
 import { IconLogo, IconPlus } from './components/Icon.jsx'
@@ -12,9 +19,15 @@ import CommitmentForm from './components/CommitmentForm.jsx'
 import ExportButton from './components/ExportButton.jsx'
 import SettingsMenu from './components/SettingsMenu.jsx'
 import Modal from './components/Modal.jsx'
+import ImportLocalData from './components/ImportLocalData.jsx'
 
 export default function App() {
-  const [commitments, setCommitments] = useCommitments()
+  const { data: commitments = [], isPending, isError, refetch } = useCommitments()
+  const saveCommitment = useSaveCommitment()
+  const toggleStatus = useToggleCommitmentStatus()
+  const recordDecision = useRecordDecision()
+  const replaceCommitments = useReplaceCommitments()
+  const clearCommitments = useClearCommitments()
   const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
 
@@ -28,10 +41,9 @@ export default function App() {
   }, [commitments])
 
   function handleSave(record) {
-    setCommitments((prev) => {
-      const exists = prev.some((c) => c.id === record.id)
-      return exists ? prev.map((c) => (c.id === record.id ? { ...c, ...record } : c)) : [...prev, record]
-    })
+    // The form still produces a client-side id for new records; the database
+    // assigns the real one, so only an edit carries an id through.
+    saveCommitment.mutate(editingCommitment ? { ...record, id: editingCommitment.id } : { ...record, id: null })
     setEditingId(null)
     setShowForm(false)
   }
@@ -45,21 +57,17 @@ export default function App() {
   // renewal checkpoint) is visible in seconds instead of on an empty
   // dashboard — mainly for a first look/demo, not day-to-day use.
   function handleLoadDemo() {
-    setCommitments(buildDemoCommitments())
+    replaceCommitments.mutate(buildDemoCommitments())
   }
 
   function handleClearAll() {
     if (commitments.length === 0) return
-    const confirmed = window.confirm('Clear all commitments? This removes everything stored in this browser and cannot be undone.')
-    if (confirmed) setCommitments([])
+    const confirmed = window.confirm('Clear all commitments? This removes everything in your account and cannot be undone.')
+    if (confirmed) clearCommitments.mutate()
   }
 
   function handleToggleStatus(commitment) {
-    setCommitments((prev) =>
-      prev.map((c) =>
-        c.id === commitment.id ? { ...c, status: c.status === 'active' ? 'cancelled' : 'active' } : c,
-      ),
-    )
+    toggleStatus.mutate(commitment)
   }
 
   // The renewal checkpoint's "Keep it" / "Reconsider" taps. "Keep it" also
@@ -68,18 +76,7 @@ export default function App() {
   // the decision with the £ amount at that moment, so the running
   // kept/reconsidered totals stay meaningful even as costs change later.
   function handleRenewalAction(commitment, decision) {
-    const amount = exposureFor(commitment) || 0
-    setCommitments((prev) =>
-      prev.map((c) => {
-        if (c.id !== commitment.id) return c
-        const patch = decision === 'kept' ? applyKeepDecision(c) : {}
-        return {
-          ...c,
-          ...patch,
-          decisionLog: [...(c.decisionLog || []), { date: new Date().toISOString().slice(0, 10), decision, amount }],
-        }
-      }),
-    )
+    recordDecision.mutate({ commitment, decision })
   }
 
   return (
@@ -107,6 +104,24 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6 sm:px-6">
+        {isError ? (
+          <div className="rounded-xl border border-status-critical/25 bg-status-critical/5 px-4 py-3.5">
+            <p className="text-sm font-semibold text-ink-primary">Couldn't load your commitments</p>
+            <p className="mt-0.5 text-sm text-ink-secondary">
+              Nothing has been lost — this is a problem reading them, not a problem with your data.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="mt-2.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <ImportLocalData />
+        )}
+
         <HeadlineExposure commitments={commitments} />
 
         <RenewalCheckpoint commitments={commitments} onAction={handleRenewalAction} />
@@ -121,7 +136,7 @@ export default function App() {
             <IconPlus className="h-4 w-4" />
             Add a subscription or BNPL commitment
           </button>
-          {commitments.length === 0 && (
+          {commitments.length === 0 && !isPending && (
             <p className="text-center text-xs text-ink-muted">
               New here?{' '}
               <button onClick={handleLoadDemo} className="font-medium text-brand-600 underline-offset-2 hover:underline">
