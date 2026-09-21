@@ -25,6 +25,8 @@ import ImportLocalData from './components/ImportLocalData.jsx'
 import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
 import CsvImport from './components/manage/CsvImport.jsx'
 import ExposureTrend from './components/manage/ExposureTrend.jsx'
+import CalendarMonth from './components/calendar/CalendarMonth.jsx'
+import CashFlowForecast from './components/calendar/CashFlowForecast.jsx'
 
 export default function App() {
   const { data: commitments = [], isPending, isError, refetch } = useCommitments()
@@ -138,6 +140,10 @@ export default function App() {
         <RenewalCheckpoint commitments={commitments} onAction={handleRenewalAction} />
 
         <CategoryBreakdown commitments={commitments} />
+
+        <CashFlowForecast commitments={commitments} />
+
+        <CalendarMonth commitments={commitments} />
 
         <ExposureTrend commitments={commitments} />
 

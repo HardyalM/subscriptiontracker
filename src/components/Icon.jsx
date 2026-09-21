@@ -154,6 +154,22 @@ export function IconUpload({ className }) {
   )
 }
 
+export function IconChevronLeft({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M12.5 4.5L7 10l5.5 5.5" />
+    </svg>
+  )
+}
+
+export function IconChevronRight({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M7.5 4.5L13 10l-5.5 5.5" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>

@@ -22,6 +22,9 @@ import {
   formatGBP,
   applyKeepDecision,
   exposureTrend,
+  projectOccurrences,
+  forecastByDay,
+  cumulativeOutflow,
 } from './calculations.js'
 
 const today = new Date('2026-09-21')
@@ -318,5 +321,154 @@ describe('exposureTrend', () => {
 
   it('counts a commitment with no createdAt as always present', () => {
     expect(exposureTrend([monthly({})], 2, new Date('2026-09-21')).map((p) => p.exposure)).toEqual([120, 120])
+  })
+})
+
+// --- Phase 5: forecasting --------------------------------------------------
+
+describe('projectOccurrences', () => {
+  const today = new Date('2026-09-21')
+  const monthlySub = {
+    id: 's1',
+    name: 'Video streaming',
+    type: 'subscription',
+    status: 'active',
+    frequency: 'monthly',
+    costPerPayment: 10,
+    nextPaymentDate: '2026-10-01',
+  }
+
+  it('repeats a monthly subscription across the horizon', () => {
+    const dates = projectOccurrences(monthlySub, 3, today).map((o) => o.date)
+    expect(dates).toEqual(['2026-10-01', '2026-11-01', '2026-12-01'])
+  })
+
+  it('repeats a weekly subscription every 7 days', () => {
+    const dates = projectOccurrences({ ...monthlySub, frequency: 'weekly' }, 1, today).map((o) => o.date)
+    expect(dates).toEqual(['2026-10-01', '2026-10-08', '2026-10-15'])
+  })
+
+  it('clamps month-end rather than rolling over', () => {
+    // 31 Jan + 1 month must be 28 Feb in a non-leap year, not 3 March.
+    const dates = projectOccurrences(
+      { ...monthlySub, nextPaymentDate: '2027-01-31' },
+      2,
+      new Date('2027-01-01'),
+    ).map((o) => o.date)
+    expect(dates.slice(0, 2)).toEqual(['2027-01-31', '2027-02-28'])
+  })
+
+  it('carries the clamp forward, matching what applyKeepDecision does', () => {
+    // Once a date is clamped it stays clamped: 31 Jan -> 28 Feb -> 28 Mar,
+    // not back to the 31st. That is how advanceDate already behaves when
+    // "Keep it" is tapped each month, so the forecast has to predict the
+    // same thing — a projection that disagreed with the app would be worse
+    // than one that inherits its quirk. Whether the underlying behaviour
+    // should anchor to the original day-of-month is a separate product
+    // question; this test pins the current answer so a change is deliberate.
+    const dates = projectOccurrences(
+      { ...monthlySub, nextPaymentDate: '2027-01-31' },
+      3,
+      new Date('2027-01-01'),
+    ).map((o) => o.date)
+    expect(dates).toEqual(['2027-01-31', '2027-02-28', '2027-03-28'])
+  })
+
+  it('handles a leap year month-end', () => {
+    const dates = projectOccurrences(
+      { ...monthlySub, nextPaymentDate: '2028-01-31' },
+      2,
+      new Date('2028-01-01'),
+    ).map((o) => o.date)
+    expect(dates).toEqual(['2028-01-31', '2028-02-29'])
+  })
+
+  it('stops a fixed BNPL plan after its remaining instalments', () => {
+    const plan = { ...monthlySub, type: 'bnpl', bnplMode: 'fixed', instalmentsRemaining: 2, costPerPayment: 25 }
+    expect(projectOccurrences(plan, 6, today).map((o) => o.date)).toEqual(['2026-10-01', '2026-11-01'])
+  })
+
+  it('runs a recurring BNPL plan to the horizon like a subscription', () => {
+    const plan = { ...monthlySub, type: 'bnpl', bnplMode: 'recurring', instalmentsRemaining: 1, costPerPayment: 25 }
+    expect(projectOccurrences(plan, 3, today)).toHaveLength(3)
+  })
+
+  it('returns nothing for a fixed plan with no instalments left', () => {
+    const plan = { ...monthlySub, type: 'bnpl', bnplMode: 'fixed', instalmentsRemaining: 0 }
+    expect(projectOccurrences(plan, 3, today)).toEqual([])
+  })
+
+  it('yields exactly one occurrence for one-off installments', () => {
+    // No defined cadence, so it must not loop.
+    const one = { ...monthlySub, frequency: 'one-off installments' }
+    expect(projectOccurrences(one, 6, today)).toHaveLength(1)
+  })
+
+  it('ignores cancelled commitments', () => {
+    expect(projectOccurrences({ ...monthlySub, status: 'cancelled' }, 3, today)).toEqual([])
+  })
+
+  it('includes an overdue payment on the day it was due', () => {
+    const overdue = { ...monthlySub, nextPaymentDate: '2026-09-10' }
+    expect(projectOccurrences(overdue, 1, today)[0].date).toBe('2026-09-10')
+  })
+
+  it('returns nothing for a zero or missing cost', () => {
+    expect(projectOccurrences({ ...monthlySub, costPerPayment: 0 }, 3, today)).toEqual([])
+  })
+
+  it('returns nothing without a next payment date', () => {
+    expect(projectOccurrences({ ...monthlySub, nextPaymentDate: null }, 3, today)).toEqual([])
+  })
+
+  it('carries the amount and identity onto each occurrence', () => {
+    const [first] = projectOccurrences(monthlySub, 1, today)
+    expect(first).toMatchObject({ amount: 10, commitmentId: 's1', name: 'Video streaming', type: 'subscription' })
+  })
+})
+
+describe('forecastByDay', () => {
+  const today = new Date('2026-09-21')
+  const a = { id: 'a', name: 'A', type: 'subscription', status: 'active', frequency: 'monthly', costPerPayment: 10, nextPaymentDate: '2026-10-01' }
+  const b = { id: 'b', name: 'B', type: 'subscription', status: 'active', frequency: 'monthly', costPerPayment: 5, nextPaymentDate: '2026-10-01' }
+
+  it('sums commitments falling on the same day', () => {
+    const [first] = forecastByDay([a, b], 1, today)
+    expect(first).toMatchObject({ date: '2026-10-01', total: 15 })
+    expect(first.occurrences).toHaveLength(2)
+  })
+
+  it('omits days with no payment rather than emitting zeroes', () => {
+    expect(forecastByDay([a], 1, today).every((d) => d.total > 0)).toBe(true)
+  })
+
+  it('returns days in date order', () => {
+    const days = forecastByDay([a, { ...b, nextPaymentDate: '2026-09-25' }], 1, today).map((d) => d.date)
+    expect(days).toEqual(['2026-09-25', '2026-10-01'])
+  })
+
+  it('is empty for no commitments', () => {
+    expect(forecastByDay([], 3, today)).toEqual([])
+  })
+})
+
+describe('cumulativeOutflow', () => {
+  const today = new Date('2026-09-21')
+  const sub = { id: 'a', name: 'A', type: 'subscription', status: 'active', frequency: 'monthly', costPerPayment: 10, nextPaymentDate: '2026-10-01' }
+
+  it('accumulates forward', () => {
+    expect(cumulativeOutflow([sub], 3, today).map((p) => p.cumulative)).toEqual([10, 20, 30])
+  })
+
+  it('excludes days already in the past', () => {
+    // An overdue payment is money already owed, not future liquidity need.
+    const overdue = { ...sub, nextPaymentDate: '2026-09-10' }
+    const points = cumulativeOutflow([overdue], 1, today)
+    expect(points.every((p) => p.date >= '2026-09-21')).toBe(true)
+  })
+
+  it('keeps the per-day outflow alongside the running total', () => {
+    const [first] = cumulativeOutflow([sub], 1, today)
+    expect(first).toMatchObject({ outflow: 10, cumulative: 10 })
   })
 })

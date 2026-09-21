@@ -368,6 +368,109 @@ function countsInMonth(commitment, monthEnd) {
   return true
 }
 
+/**
+ * Every payment a commitment is expected to make between its next payment
+ * date and `monthsAhead` months from today, oldest first.
+ *
+ * Built entirely on addDays/addMonthsClamped/advanceDate, so leap years and
+ * month-end clamping behave exactly as they already do everywhere else —
+ * 31 Jan + 1 month is 28/29 Feb, not 3 March.
+ *
+ * What each type does:
+ *   subscription           repeats for the whole horizon
+ *   bnpl, mode 'fixed'     repeats at most instalmentsRemaining times
+ *   bnpl, mode 'recurring' repeats for the whole horizon, like a
+ *                          subscription — it is an open-ended credit line
+ *   'one-off installments' has no cadence, so it yields a single occurrence
+ *
+ * Occurrences earlier than today are included when the commitment is
+ * overdue: the money is still owed, and the calendar should show it on the
+ * day it was due. Callers wanting forward-looking cash flow only should
+ * filter on date — see forecastByDay().
+ *
+ * @returns {{date: string, amount: number, commitmentId: string, name: string, type: string}[]}
+ */
+export function projectOccurrences(commitment, monthsAhead = 3, today = new Date()) {
+  if (!commitment || commitment.status !== 'active') return []
+  if (!commitment.nextPaymentDate) return []
+
+  const amount = Number(commitment.costPerPayment) || 0
+  if (amount <= 0) return []
+
+  const horizon = addMonthsClamped(today, monthsAhead)
+  const isBnpl = commitment.type === 'bnpl'
+  const isFixedBnpl = isBnpl && commitment.bnplMode !== 'recurring'
+
+  // A fixed plan has a known number of payments left; anything else runs to
+  // the horizon. The cap is a belt-and-braces stop against a bad frequency
+  // producing an unbounded loop.
+  const remaining = Number(commitment.instalmentsRemaining) || 0
+  if (isFixedBnpl && remaining <= 0) return []
+  const maxCount = isFixedBnpl ? remaining : 500
+
+  const occurrences = []
+  let date = toIsoDate(toMidnight(commitment.nextPaymentDate))
+
+  while (occurrences.length < maxCount && date <= horizon) {
+    occurrences.push({
+      date,
+      amount,
+      commitmentId: commitment.id,
+      name: commitment.name,
+      type: commitment.type,
+    })
+
+    const next = advanceDate(date, commitment.frequency)
+    // 'one-off installments' returns the same date — one occurrence only.
+    if (next === date) break
+    date = next
+  }
+
+  return occurrences
+}
+
+/**
+ * Projected outflow per day across every commitment, as a sorted array of
+ * days that actually have a payment. Days with nothing are omitted — the
+ * calendar grid fills the gaps, and an array of mostly-zero days is noise.
+ *
+ * @returns {{date: string, total: number, occurrences: object[]}[]}
+ */
+export function forecastByDay(commitments, monthsAhead = 3, today = new Date()) {
+  const byDay = new Map()
+
+  for (const commitment of commitments) {
+    for (const occurrence of projectOccurrences(commitment, monthsAhead, today)) {
+      const day = byDay.get(occurrence.date) || { date: occurrence.date, total: 0, occurrences: [] }
+      day.total += occurrence.amount
+      day.occurrences.push(occurrence)
+      byDay.set(occurrence.date, day)
+    }
+  }
+
+  return Array.from(byDay.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+}
+
+/**
+ * Running total of projected outflow from today forward — the liquidity
+ * line. Each point is the cumulative amount due by that date, which is the
+ * question worth answering: not "what goes out on the 14th" but "how much
+ * will have left the account by then".
+ *
+ * @returns {{date: string, outflow: number, cumulative: number}[]}
+ */
+export function cumulativeOutflow(commitments, monthsAhead = 3, today = new Date()) {
+  const start = toIsoDate(toMidnight(today))
+  let running = 0
+
+  return forecastByDay(commitments, monthsAhead, today)
+    .filter((day) => day.date >= start)
+    .map((day) => {
+      running += day.total
+      return { date: day.date, outflow: day.total, cumulative: running }
+    })
+}
+
 export function formatGBP(amount) {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
