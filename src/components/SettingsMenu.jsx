@@ -4,7 +4,8 @@ import {
   getNotificationPermission,
   requestNotificationPermission,
 } from '../lib/notifications.js'
-import { IconSliders, IconX, IconRewind, IconBan } from './Icon.jsx'
+import { IconSliders, IconX, IconRewind, IconBan, IconSignOut } from './Icon.jsx'
+import { useSession } from '../lib/session.jsx'
 
 const MOTION_KEY = 'bnpl-tracker:reduce-motion'
 
@@ -78,6 +79,7 @@ function Toggle({ active, disabled, onClick, children }) {
  * their settings.
  */
 export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll }) {
+  const { user, signOut } = useSession()
   const [open, setOpen] = useState(false)
   const [reducedMotion, setReducedMotion] = useReducedMotion()
   const [permission, setPermission] = useState(getNotificationPermission)
@@ -148,6 +150,22 @@ export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll })
           </div>
 
           <div className="px-2 pb-2.5">
+            <SectionLabel>Account</SectionLabel>
+            <p className="truncate px-3 pb-1 text-sm text-ink-primary" title={user?.email}>
+              {user?.email}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                signOut()
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-ink-primary transition hover:bg-surface-sunken"
+            >
+              <IconSignOut className="h-4 w-4 text-ink-muted" />
+              Sign out
+            </button>
+
             <SectionLabel>Appearance</SectionLabel>
             <Toggle active={reducedMotion} onClick={() => setReducedMotion((v) => !v)}>
               Reduce motion

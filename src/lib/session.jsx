@@ -1,0 +1,132 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { supabase, isSupabaseConfigured } from './supabaseClient.js'
+
+/**
+ * The app's one piece of global state, per the v2 architecture rules:
+ * who is signed in, and which workspace their data belongs to. Everything
+ * else stays local component state or (from Phase 3) React Query cache —
+ * this context is deliberately not a dumping ground.
+ *
+ * `workspace` is resolved here rather than in a data hook because every
+ * query from Phase 3 onward needs a workspace_id, and the RLS policies key
+ * off workspace membership rather than user id.
+ */
+const SessionContext = createContext(null)
+
+export function useSession() {
+  const value = useContext(SessionContext)
+  if (!value) throw new Error('useSession() must be called inside <SessionProvider>')
+  return value
+}
+
+export function SessionProvider({ children }) {
+  const [session, setSession] = useState(null)
+  const [workspace, setWorkspace] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [workspaceError, setWorkspaceError] = useState(null)
+
+  const user = session?.user ?? null
+
+  // Restore an existing session on load, then follow auth state changes.
+  // onAuthStateChange also fires for token refreshes and for sign-in
+  // completed in another tab, so this is the single source of truth.
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false)
+      return undefined
+    }
+
+    let active = true
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return
+        setSession(data.session ?? null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      setLoading(false)
+    })
+
+    return () => {
+      active = false
+      data.subscription.unsubscribe()
+    }
+  }, [])
+
+  // The signup trigger provisions exactly one workspace per user, so this
+  // asks for the first membership row rather than offering a picker. RLS
+  // guarantees it can only ever return a workspace this user belongs to.
+  useEffect(() => {
+    if (!user) {
+      setWorkspace(null)
+      setWorkspaceError(null)
+      return undefined
+    }
+
+    let active = true
+
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select('role, workspaces (id, name)')
+        .limit(1)
+        .maybeSingle()
+
+      if (!active) return
+
+      if (error) {
+        setWorkspaceError(error)
+        setWorkspace(null)
+        return
+      }
+
+      setWorkspaceError(null)
+      setWorkspace(data?.workspaces ? { ...data.workspaces, role: data.role } : null)
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [user?.id])
+
+  const signIn = useCallback(async ({ email, password }) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    return { error: error ?? null }
+  }, [])
+
+  /**
+   * Returns `needsConfirmation` so the screen can show a "check your inbox"
+   * state instead of pretending the user is signed in. With email
+   * confirmation switched on — Supabase's default — signUp resolves with a
+   * user but no session until the emailed link is clicked.
+   */
+  const signUp = useCallback(async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    })
+    if (error) return { error, needsConfirmation: false }
+    return { error: null, needsConfirmation: !data.session }
+  }, [])
+
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut()
+    return { error: error ?? null }
+  }, [])
+
+  const value = useMemo(
+    () => ({ user, session, workspace, loading, workspaceError, signIn, signUp, signOut }),
+    [user, session, workspace, loading, workspaceError, signIn, signUp, signOut],
+  )
+
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+}

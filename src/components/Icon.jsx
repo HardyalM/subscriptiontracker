@@ -127,6 +127,15 @@ export function IconSliders({ className }) {
   )
 }
 
+export function IconSignOut({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M12.5 6.2V4.6A1.6 1.6 0 0010.9 3H5.1A1.6 1.6 0 003.5 4.6v10.8A1.6 1.6 0 005.1 17h5.8a1.6 1.6 0 001.6-1.6v-1.6" />
+      <path d="M8.5 10h8m0 0l-2.6-2.6M16.5 10l-2.6 2.6" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>

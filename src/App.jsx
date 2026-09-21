@@ -135,7 +135,9 @@ export default function App() {
         <Dashboard commitments={commitments} onEdit={handleEdit} onToggleStatus={handleToggleStatus} />
 
         <footer className="flex flex-col items-center gap-1 pt-4 text-center text-xs text-ink-muted">
-          <p>Everything's stored locally in this browser — nothing leaves your device.</p>
+          <p>
+            Your commitments are still stored in this browser — only your account details are on the server.
+          </p>
           <p className="text-ink-muted/70">Settings (top right) has example data and a reset if you need one.</p>
         </footer>
       </main>
