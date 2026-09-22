@@ -170,6 +170,15 @@ export function IconChevronRight({ className }) {
   )
 }
 
+export function IconCamera({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M2.8 6.8h2.4l1.2-2h7.2l1.2 2h2.4a1.3 1.3 0 011.3 1.3v6.6a1.3 1.3 0 01-1.3 1.3H2.8a1.3 1.3 0 01-1.3-1.3V8.1a1.3 1.3 0 011.3-1.3z" />
+      <circle cx="10" cy="11.2" r="2.8" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>

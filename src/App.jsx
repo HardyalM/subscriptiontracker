@@ -12,7 +12,7 @@ import { filterAndSortCommitments, DEFAULT_FILTERS } from './lib/commitmentFilte
 import { getRenewalCheckpointItems } from './lib/calculations.js'
 import { notifyIfDue } from './lib/notifications.js'
 import { buildDemoCommitments } from './lib/demoData.js'
-import { IconLogo, IconPlus, IconUpload } from './components/Icon.jsx'
+import { IconLogo, IconPlus, IconUpload, IconCamera } from './components/Icon.jsx'
 import HeadlineExposure from './components/HeadlineExposure.jsx'
 import RenewalCheckpoint from './components/RenewalCheckpoint.jsx'
 import Dashboard from './components/Dashboard.jsx'
@@ -24,6 +24,7 @@ import Modal from './components/Modal.jsx'
 import ImportLocalData from './components/ImportLocalData.jsx'
 import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
 import CsvImport from './components/manage/CsvImport.jsx'
+import ReceiptImport from './components/receipts/ReceiptImport.jsx'
 import ExposureTrend from './components/manage/ExposureTrend.jsx'
 import BankSyncCard from './components/bank-sync/BankSyncCard.jsx'
 import SuggestionsReview from './components/bank-sync/SuggestionsReview.jsx'
@@ -41,6 +42,11 @@ export default function App() {
   const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showReceipt, setShowReceipt] = useState(false)
+  // A draft produced by the receipt parser. It seeds the normal add form
+  // rather than being written anywhere — a model's reading of a receipt is a
+  // suggestion, not a fact.
+  const [prefillDraft, setPrefillDraft] = useState(null)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
 
   // Derived state over the cache — no refetch, no round-trip per keystroke.
@@ -61,6 +67,7 @@ export default function App() {
     saveCommitment.mutate(editingCommitment ? { ...record, id: editingCommitment.id } : { ...record, id: null })
     setEditingId(null)
     setShowForm(false)
+    setPrefillDraft(null)
   }
 
   function handleEdit(commitment) {
@@ -167,6 +174,13 @@ export default function App() {
               <IconUpload className="h-4 w-4" />
               Import CSV
             </button>
+            <button
+              onClick={() => setShowReceipt(true)}
+              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 px-5 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600 sm:py-0"
+            >
+              <IconCamera className="h-4 w-4" />
+              Read a receipt
+            </button>
           </div>
           {commitments.length === 0 && !isPending && (
             <p className="text-center text-xs text-ink-muted">
@@ -211,20 +225,32 @@ export default function App() {
         />
       </Modal>
 
+      <Modal open={showReceipt} labelledBy="receipt-import-heading" onClose={() => setShowReceipt(false)}>
+        <ReceiptImport
+          onClose={() => setShowReceipt(false)}
+          onDraft={(draft) => {
+            setShowReceipt(false)
+            setPrefillDraft(draft)
+          }}
+        />
+      </Modal>
+
       <Modal
-        open={showForm || Boolean(editingCommitment)}
+        open={showForm || Boolean(editingCommitment) || Boolean(prefillDraft)}
         labelledBy="commitment-form-heading"
         onClose={() => {
           setEditingId(null)
           setShowForm(false)
+          setPrefillDraft(null)
         }}
       >
         <CommitmentForm
-          editingCommitment={editingCommitment}
+          editingCommitment={editingCommitment || prefillDraft}
           onSave={handleSave}
           onCancel={() => {
             setEditingId(null)
             setShowForm(false)
+            setPrefillDraft(null)
           }}
         />
       </Modal>

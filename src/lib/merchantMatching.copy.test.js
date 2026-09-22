@@ -12,3 +12,12 @@ describe('the Edge Function copy of merchantMatching', () => {
     expect(copy).toBe(source)
   })
 })
+
+describe('the Edge Function copy of receiptSchema', () => {
+  it('is byte-identical to the source of truth', () => {
+    //   cp src/lib/receiptSchema.js supabase/functions/_shared/
+    const source = readFileSync('src/lib/receiptSchema.js', 'utf8')
+    const copy = readFileSync('supabase/functions/_shared/receiptSchema.js', 'utf8')
+    expect(copy).toBe(source)
+  })
+})
