@@ -12,14 +12,18 @@ import { filterAndSortCommitments, DEFAULT_FILTERS, hasActiveFilters } from './l
 import { getRenewalCheckpointItems } from './lib/calculations.js'
 import { notifyIfDue } from './lib/notifications.js'
 import { buildDemoCommitments } from './lib/demoData.js'
-import { IconLogo, IconPlus, IconUpload, IconCamera } from './components/Icon.jsx'
-import HeadlineExposure from './components/HeadlineExposure.jsx'
-import RenewalCheckpoint from './components/RenewalCheckpoint.jsx'
-import Dashboard from './components/Dashboard.jsx'
+
+import { IconPlus, IconUpload, IconCamera } from './components/Icon.jsx'
+import AppShell, { SectionHeading } from './components/shell/AppShell.jsx'
+import UserMenu from './components/shell/UserMenu.jsx'
+import StatGrid from './components/dashboard/StatGrid.jsx'
+import ReviewQueue from './components/dashboard/ReviewQueue.jsx'
+import CommitmentTable from './components/dashboard/CommitmentTable.jsx'
+import { StatGridSkeleton, TableSkeleton, ReviewQueueSkeleton } from './components/dashboard/Skeletons.jsx'
+
 import CategoryBreakdown from './components/CategoryBreakdown.jsx'
-import CommitmentForm from './components/CommitmentForm.jsx'
 import ExportButton from './components/ExportButton.jsx'
-import SettingsMenu from './components/SettingsMenu.jsx'
+import CommitmentForm from './components/CommitmentForm.jsx'
 import Modal from './components/Modal.jsx'
 import ImportLocalData from './components/ImportLocalData.jsx'
 import WriteFeedback from './components/WriteFeedback.jsx'
@@ -40,6 +44,7 @@ export default function App() {
   const replaceCommitments = useReplaceCommitments()
   const clearCommitments = useClearCommitments()
   const importCommitments = useImportCommitments()
+
   const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -50,10 +55,13 @@ export default function App() {
   const [prefillDraft, setPrefillDraft] = useState(null)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
 
+  const editingCommitment = commitments.find((c) => c.id === editingId) || null
+
   // Derived state over the cache — no refetch, no round-trip per keystroke.
   const visible = useMemo(() => filterAndSortCommitments(commitments, filters), [commitments, filters])
-
-  const editingCommitment = commitments.find((c) => c.id === editingId) || null
+  const active = useMemo(() => visible.filter((c) => c.status === 'active'), [visible])
+  const cancelled = useMemo(() => visible.filter((c) => c.status === 'cancelled'), [visible])
+  const filtered = commitments.length > 0 && hasActiveFilters(filters)
 
   // Browser reminders — only fires while this tab is open (see
   // src/lib/notifications.js for the honest caveat on what this can and
@@ -64,25 +72,23 @@ export default function App() {
 
   // Awaited on purpose. Closing the modal before the write lands means a
   // failure silently discards everything the user typed, with the form gone
-  // and nothing to explain it. On failure the modal stays open, the draft is
-  // intact, and CommitmentForm shows why.
+  // and nothing to explain it.
   async function handleSave(record) {
-    // The form still produces a client-side id for new records; the database
-    // assigns the real one, so only an edit carries an id through.
     const payload = editingCommitment ? { ...record, id: editingCommitment.id } : { ...record, id: null }
-
     try {
       await saveCommitment.mutateAsync(payload)
     } catch {
-      // Surfaced to the user through saveCommitment.error, which is passed
-      // into the form below. Swallowed here so it is not also an unhandled
-      // rejection in the console.
+      // Surfaced through saveCommitment.error, passed into the form below.
       return
     }
+    closeForm()
+  }
 
+  function closeForm() {
     setEditingId(null)
     setShowForm(false)
     setPrefillDraft(null)
+    saveCommitment.reset()
   }
 
   function handleEdit(commitment) {
@@ -90,16 +96,15 @@ export default function App() {
     setShowForm(true)
   }
 
-  // Seeds a realistic set of commitments so the effect (headline number,
-  // renewal checkpoint) is visible in seconds instead of on an empty
-  // dashboard — mainly for a first look/demo, not day-to-day use.
   function handleLoadDemo() {
     replaceCommitments.mutate(buildDemoCommitments())
   }
 
   function handleClearAll() {
     if (commitments.length === 0) return
-    const confirmed = window.confirm('Clear all commitments? This removes everything in your account and cannot be undone.')
+    const confirmed = window.confirm(
+      'Clear all commitments? This removes everything in your account and cannot be undone.',
+    )
     if (confirmed) clearCommitments.mutate()
   }
 
@@ -107,132 +112,145 @@ export default function App() {
     toggleStatus.mutate(commitment)
   }
 
-  // The renewal checkpoint's "Keep it" / "Reconsider" taps. "Keep it" also
-  // moves the commitment on to its next cycle (see applyKeepDecision) —
-  // that's the fix for renewal dates silently going stale. Both taps log
-  // the decision with the £ amount at that moment, so the running
-  // kept/reconsidered totals stay meaningful even as costs change later.
+  // "Keep it" also moves the commitment on to its next cycle (see
+  // applyKeepDecision) — that's the fix for renewal dates silently going
+  // stale. Both taps log the decision with the £ amount at that moment, so
+  // the running totals stay meaningful even as costs change later.
   function handleRenewalAction(commitment, decision) {
     recordDecision.mutate({ commitment, decision })
   }
 
+  function scrollToReview() {
+    document.getElementById('review-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const pageActions = (
+    <>
+      <ExportButton commitments={commitments} />
+      <button
+        type="button"
+        onClick={() => setShowForm(true)}
+        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-sm font-semibold text-white shadow-action transition-all duration-150 hover:bg-brand-700 hover:shadow-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 active:translate-y-px"
+      >
+        <IconPlus className="h-4 w-4" />
+        Add
+      </button>
+    </>
+  )
+
   return (
-    <div className="min-h-screen bg-surface-page pb-20">
-      <header className="sticky top-0 z-10 border-b border-ink-muted/10 bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/75">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white shadow-card">
-              <IconLogo className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate font-display text-base font-bold leading-tight text-ink-primary sm:text-lg">
-                Subscription &amp; BNPL Tracker
-              </h1>
-              <p className="hidden text-xs text-ink-secondary sm:block sm:text-sm">
-                What your recurring costs actually add up to.
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <ExportButton commitments={commitments} />
-            <SettingsMenu hasCommitments={commitments.length > 0} onLoadDemo={handleLoadDemo} onClearAll={handleClearAll} />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6 sm:px-6">
-        {isError ? (
-          <div className="rounded-xl border border-status-critical/25 bg-status-critical/5 px-4 py-3.5">
-            <p className="text-sm font-semibold text-ink-primary">Couldn't load your commitments</p>
-            <p className="mt-0.5 text-sm text-ink-secondary">
-              Nothing has been lost — this is a problem reading them, not a problem with your data.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="mt-2.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600"
-            >
-              Try again
-            </button>
-          </div>
-        ) : (
-          <ImportLocalData />
-        )}
-
-        <HeadlineExposure commitments={commitments} />
-
-        <RenewalCheckpoint commitments={commitments} onAction={handleRenewalAction} />
-
-        <SuggestionsReview />
-
-        <CategoryBreakdown commitments={commitments} />
-
-        <CashFlowForecast commitments={commitments} />
-
-        <CalendarMonth commitments={commitments} />
-
-        <ExposureTrend commitments={commitments} />
-
-        <div className="space-y-2">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              onClick={() => setShowForm(true)}
-              className="group flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600"
-            >
-              <IconPlus className="h-4 w-4" />
-              Add a subscription or BNPL commitment
-            </button>
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 px-5 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600 sm:py-0"
-            >
-              <IconUpload className="h-4 w-4" />
-              Import CSV
-            </button>
-            <button
-              onClick={() => setShowReceipt(true)}
-              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 px-5 py-5 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600 sm:py-0"
-            >
-              <IconCamera className="h-4 w-4" />
-              Read a receipt
-            </button>
-          </div>
-          {commitments.length === 0 && !isPending && (
-            <p className="text-center text-xs text-ink-muted">
-              New here?{' '}
-              <button onClick={handleLoadDemo} className="font-medium text-brand-600 underline-offset-2 hover:underline">
-                Load example data
-              </button>{' '}
-              to see how it works.
-            </p>
-          )}
-        </div>
-
-        {commitments.length > 0 && (
-          <CommitmentFilters
-            filters={filters}
-            onChange={setFilters}
-            shown={visible.length}
-            total={commitments.length}
-          />
-        )}
-
-        <Dashboard
-          commitments={visible}
-          onEdit={handleEdit}
-          onToggleStatus={handleToggleStatus}
-          isFiltered={commitments.length > 0 && hasActiveFilters(filters)}
+    <AppShell
+      actions={pageActions}
+      menu={
+        <UserMenu
+          hasCommitments={commitments.length > 0}
+          onLoadDemo={handleLoadDemo}
+          onClearAll={handleClearAll}
         />
-
-        <BankSyncCard />
-
-        <footer className="flex flex-col items-center gap-1 pt-4 text-center text-xs text-ink-muted">
-          <p>
-            Your commitments are still stored in this browser — only your account details are on the server.
+      }
+    >
+      {isError ? (
+        <div className="rounded-2xl border border-status-critical/25 bg-white p-6 shadow-card">
+          <p className="font-display text-[15px] font-bold text-ink-primary">Couldn't load your commitments</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
+            Nothing has been lost — this is a problem reading them, not a problem with your data.
           </p>
-          <p className="text-ink-muted/70">Settings (top right) has example data and a reset if you need one.</p>
-        </footer>
-      </main>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-4 inline-flex h-10 items-center rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-action transition-all duration-150 hover:bg-brand-700 hover:shadow-action-hover"
+          >
+            Try again
+          </button>
+        </div>
+      ) : isPending ? (
+        <div className="space-y-8">
+          <StatGridSkeleton />
+          <ReviewQueueSkeleton />
+          <TableSkeleton />
+        </div>
+      ) : (
+        <div className="space-y-10">
+          <ImportLocalData />
+
+          <StatGrid commitments={commitments} onReviewClick={scrollToReview} />
+
+          <ReviewQueue id="review-queue" commitments={commitments} onAction={handleRenewalAction} />
+
+          <SuggestionsReview />
+
+          <section>
+            <SectionHeading title="Your commitments" description="Everything you're currently signed up to.">
+              <div className="flex gap-2">
+                <SecondaryButton onClick={() => setShowImport(true)} icon={<IconUpload className="h-4 w-4" />}>
+                  Import CSV
+                </SecondaryButton>
+                <SecondaryButton onClick={() => setShowReceipt(true)} icon={<IconCamera className="h-4 w-4" />}>
+                  Read a receipt
+                </SecondaryButton>
+              </div>
+            </SectionHeading>
+
+            {commitments.length > 0 && (
+              <div className="mb-4">
+                <CommitmentFilters
+                  filters={filters}
+                  onChange={setFilters}
+                  shown={visible.length}
+                  total={commitments.length}
+                />
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <CommitmentTable
+                title="Active"
+                commitments={active}
+                onEdit={handleEdit}
+                onToggleStatus={handleToggleStatus}
+                emptyMessage={
+                  filtered
+                    ? 'Nothing matches those filters. Clear them to see everything again.'
+                    : 'No commitments yet — add your first subscription or BNPL plan to see it here.'
+                }
+              />
+
+              {cancelled.length > 0 && (
+                <CommitmentTable
+                  title="Cancelled"
+                  commitments={cancelled}
+                  onEdit={handleEdit}
+                  onToggleStatus={handleToggleStatus}
+                  emptyMessage="Nothing cancelled."
+                />
+              )}
+            </div>
+          </section>
+
+          <section>
+            <SectionHeading
+              title="Where it goes"
+              description="The same commitments, seen by category, by date, and over time."
+            />
+            <div className="space-y-5">
+              <CategoryBreakdown commitments={commitments} />
+              <CashFlowForecast commitments={commitments} />
+              <CalendarMonth commitments={commitments} />
+              <ExposureTrend commitments={commitments} />
+            </div>
+          </section>
+
+          <section>
+            <SectionHeading title="Connections" description="Optional ways to get data in without typing it." />
+            <BankSyncCard />
+          </section>
+
+          <footer className="border-t border-ink-muted/10 pt-6 text-center text-xs leading-relaxed text-ink-secondary">
+            <p>Your commitments are stored in your own account. This app is not connected to any bank.</p>
+            <p className="mt-1 text-ink-secondary/70">Not financial advice.</p>
+          </footer>
+        </div>
+      )}
 
       <WriteFeedback
         actions={[
@@ -267,26 +285,29 @@ export default function App() {
       <Modal
         open={showForm || Boolean(editingCommitment) || Boolean(prefillDraft)}
         labelledBy="commitment-form-heading"
-        onClose={() => {
-          setEditingId(null)
-          setShowForm(false)
-          setPrefillDraft(null)
-          saveCommitment.reset()
-        }}
+        onClose={closeForm}
       >
         <CommitmentForm
           editingCommitment={editingCommitment || prefillDraft}
           saveError={saveCommitment.error}
           isSaving={saveCommitment.isPending}
           onSave={handleSave}
-          onCancel={() => {
-            setEditingId(null)
-            setShowForm(false)
-            setPrefillDraft(null)
-            saveCommitment.reset()
-          }}
+          onCancel={closeForm}
         />
       </Modal>
-    </div>
+    </AppShell>
+  )
+}
+
+function SecondaryButton({ onClick, icon, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-ink-muted/20 bg-white px-3 text-sm font-semibold text-ink-secondary shadow-sm transition-all duration-150 hover:border-brand-500/40 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+    >
+      {icon}
+      <span className="hidden sm:inline">{children}</span>
+    </button>
   )
 }
