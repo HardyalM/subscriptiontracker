@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CATEGORIES, FREQUENCIES, defaultCategoryFor } from '../lib/constants.js'
 import { newId } from '../lib/storage.js'
 import { validateCommitment, normaliseCommitment } from '../lib/commitmentValidation.js'
+import { describeWriteError } from '../lib/writeErrors.js'
 import { IconX } from './Icon.jsx'
 
 const emptyDraft = (type = 'subscription') => ({
@@ -35,7 +36,7 @@ function toDraft(record) {
  * Add/edit form for a single Commitment. Controlled, single-entity form —
  * v1 scope deliberately has no bulk import or multi-step wizard.
  */
-export default function CommitmentForm({ editingCommitment, onSave, onCancel }) {
+export default function CommitmentForm({ editingCommitment, onSave, onCancel, saveError = null, isSaving = false }) {
   const [draft, setDraft] = useState(() => (editingCommitment ? toDraft(editingCommitment) : emptyDraft()))
   const [error, setError] = useState('')
 
@@ -261,16 +262,19 @@ export default function CommitmentForm({ editingCommitment, onSave, onCancel }) 
           </select>
         </div>
 
-        {error && (
-          <p className="rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical">{error}</p>
+        {(error || saveError) && (
+          <p role="alert" className="rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical">
+            {error || describeWriteError(saveError)}
+          </p>
         )}
 
         <div className="flex gap-3 pt-1">
           <button
             type="submit"
-            className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600"
+            disabled={isSaving}
+            className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {editingCommitment ? 'Save changes' : 'Add commitment'}
+            {isSaving ? 'Saving…' : editingCommitment ? 'Save changes' : 'Add commitment'}
           </button>
           <button
             type="button"

@@ -22,6 +22,7 @@ import ExportButton from './components/ExportButton.jsx'
 import SettingsMenu from './components/SettingsMenu.jsx'
 import Modal from './components/Modal.jsx'
 import ImportLocalData from './components/ImportLocalData.jsx'
+import WriteFeedback from './components/WriteFeedback.jsx'
 import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
 import CsvImport from './components/manage/CsvImport.jsx'
 import ReceiptImport from './components/receipts/ReceiptImport.jsx'
@@ -61,10 +62,24 @@ export default function App() {
     notifyIfDue(getRenewalCheckpointItems(commitments))
   }, [commitments])
 
-  function handleSave(record) {
+  // Awaited on purpose. Closing the modal before the write lands means a
+  // failure silently discards everything the user typed, with the form gone
+  // and nothing to explain it. On failure the modal stays open, the draft is
+  // intact, and CommitmentForm shows why.
+  async function handleSave(record) {
     // The form still produces a client-side id for new records; the database
     // assigns the real one, so only an edit carries an id through.
-    saveCommitment.mutate(editingCommitment ? { ...record, id: editingCommitment.id } : { ...record, id: null })
+    const payload = editingCommitment ? { ...record, id: editingCommitment.id } : { ...record, id: null }
+
+    try {
+      await saveCommitment.mutateAsync(payload)
+    } catch {
+      // Surfaced to the user through saveCommitment.error, which is passed
+      // into the form below. Swallowed here so it is not also an unhandled
+      // rejection in the console.
+      return
+    }
+
     setEditingId(null)
     setShowForm(false)
     setPrefillDraft(null)
@@ -219,6 +234,15 @@ export default function App() {
         </footer>
       </main>
 
+      <WriteFeedback
+        actions={[
+          { label: 'That change', mutation: toggleStatus },
+          { label: 'That decision', mutation: recordDecision },
+          { label: 'The example data', mutation: replaceCommitments },
+          { label: 'Clearing your data', mutation: clearCommitments },
+        ]}
+      />
+
       <Modal open={showImport} labelledBy="csv-import-heading" onClose={() => setShowImport(false)}>
         <CsvImport
           isImporting={importCommitments.isPending}
@@ -247,15 +271,19 @@ export default function App() {
           setEditingId(null)
           setShowForm(false)
           setPrefillDraft(null)
+          saveCommitment.reset()
         }}
       >
         <CommitmentForm
           editingCommitment={editingCommitment || prefillDraft}
+          saveError={saveCommitment.error}
+          isSaving={saveCommitment.isPending}
           onSave={handleSave}
           onCancel={() => {
             setEditingId(null)
             setShowForm(false)
             setPrefillDraft(null)
+            saveCommitment.reset()
           }}
         />
       </Modal>

@@ -41,6 +41,14 @@ export function useCommitments() {
 /**
  * Shared plumbing: every mutation below needs the workspace id and wants the
  * commitment list refetched once it settles.
+ *
+ * `optimisticUpdate` is deliberately NOT called `onMutate`. It has a
+ * different signature from React Query's hook — it takes the current cached
+ * list and the mutation variables, and returns the next list — and naming it
+ * `onMutate` invited exactly one bug: spreading caller options and then
+ * redefining the lifecycle hooks below it, which silently discarded anything
+ * a caller passed. The rollback and invalidate are internal invariants, so
+ * they are composed with caller handlers rather than replaceable by them.
  */
 function useCommitmentMutation(mutationFn, options = {}) {
   const { workspace } = useSession()
@@ -48,23 +56,29 @@ function useCommitmentMutation(mutationFn, options = {}) {
   const workspaceId = workspace?.id
   const queryKey = commitmentKeys.all(workspaceId)
 
+  const { optimisticUpdate, onError, onSettled, ...rest } = options
+
   return useMutation({
+    ...rest,
     mutationFn: (variables) => mutationFn(variables, workspaceId),
-    ...options,
-    onMutate: options.onMutate
+    onMutate: optimisticUpdate
       ? async (variables) => {
           // Optimistic paths cancel in-flight refetches first, so a slow
           // response can't overwrite the value we just painted.
           await queryClient.cancelQueries({ queryKey })
           const previous = queryClient.getQueryData(queryKey)
-          queryClient.setQueryData(queryKey, (current) => options.onMutate(current ?? [], variables))
+          queryClient.setQueryData(queryKey, (current) => optimisticUpdate(current ?? [], variables))
           return { previous }
         }
       : undefined,
-    onError: (_error, _variables, context) => {
+    onError: (error, variables, context) => {
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
+      onError?.(error, variables, context)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: (data, error, variables, context) => {
+      queryClient.invalidateQueries({ queryKey })
+      onSettled?.(data, error, variables, context)
+    },
   })
 }
 
@@ -100,7 +114,7 @@ export function useToggleCommitmentStatus() {
       if (error) throw error
     },
     {
-      onMutate: (current, commitment) =>
+      optimisticUpdate: (current, commitment) =>
         current.map((c) =>
           c.id === commitment.id ? { ...c, status: c.status === 'active' ? 'cancelled' : 'active' } : c,
         ),
@@ -151,7 +165,7 @@ export function useRecordDecision() {
       if (error) throw error
     },
     {
-      onMutate: (current, { commitment, decision }) => {
+      optimisticUpdate: (current, { commitment, decision }) => {
         const today = new Date().toISOString().slice(0, 10)
         const amount = exposureFor(commitment) || 0
         return current.map((c) => {
