@@ -25,6 +25,8 @@ import ImportLocalData from './components/ImportLocalData.jsx'
 import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
 import CsvImport from './components/manage/CsvImport.jsx'
 import ExposureTrend from './components/manage/ExposureTrend.jsx'
+import BankSyncCard from './components/bank-sync/BankSyncCard.jsx'
+import SuggestionsReview from './components/bank-sync/SuggestionsReview.jsx'
 import CalendarMonth from './components/calendar/CalendarMonth.jsx'
 import CashFlowForecast from './components/calendar/CashFlowForecast.jsx'
 
@@ -139,6 +141,8 @@ export default function App() {
 
         <RenewalCheckpoint commitments={commitments} onAction={handleRenewalAction} />
 
+        <SuggestionsReview />
+
         <CategoryBreakdown commitments={commitments} />
 
         <CashFlowForecast commitments={commitments} />
@@ -185,6 +189,8 @@ export default function App() {
         )}
 
         <Dashboard commitments={visible} onEdit={handleEdit} onToggleStatus={handleToggleStatus} />
+
+        <BankSyncCard />
 
         <footer className="flex flex-col items-center gap-1 pt-4 text-center text-xs text-ink-muted">
           <p>
