@@ -107,3 +107,23 @@ export function addOneMonth(isoDate) {
   const day = Math.min(d, lastDay)
   return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
+
+/**
+ * The cancellation guide for a commitment, found by matching its name
+ * against the same merchant_patterns table bank sync uses.
+ *
+ * One shared lookup rather than a second list of provider names, so a
+ * pattern added for bank matching automatically improves guide matching too
+ * and the two cannot drift apart.
+ *
+ * Returns null rather than a near-miss: showing someone Netflix's
+ * cancellation steps for their gym membership is worse than showing nothing.
+ */
+export function findCancellationGuide(commitmentName, patterns, guides) {
+  if (!Array.isArray(guides) || guides.length === 0) return null
+
+  const pattern = matchMerchant(commitmentName, patterns)
+  if (!pattern) return null
+
+  return guides.find((guide) => guide.provider_name === pattern.provider_name) ?? null
+}

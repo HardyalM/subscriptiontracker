@@ -6,6 +6,8 @@ import {
 } from '../lib/notifications.js'
 import { IconSliders, IconX, IconRewind, IconBan, IconSignOut } from './Icon.jsx'
 import { useSession } from '../lib/session.jsx'
+import { useEmailAlertPreference, setEmailAlerts } from '../lib/guideQueries.js'
+import { useQueryClient } from '@tanstack/react-query'
 
 const MOTION_KEY = 'bnpl-tracker:reduce-motion'
 
@@ -80,6 +82,9 @@ function Toggle({ active, disabled, onClick, children }) {
  */
 export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll }) {
   const { user, signOut } = useSession()
+  const queryClient = useQueryClient()
+  const { data: emailAlerts = false } = useEmailAlertPreference()
+  const [savingAlerts, setSavingAlerts] = useState(false)
   const [open, setOpen] = useState(false)
   const [reducedMotion, setReducedMotion] = useReducedMotion()
   const [permission, setPermission] = useState(getNotificationPermission)
@@ -171,9 +176,9 @@ export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll })
               Reduce motion
             </Toggle>
 
+            <SectionLabel>Notifications</SectionLabel>
             {isNotificationSupported() && (
               <>
-                <SectionLabel>Notifications</SectionLabel>
                 <Toggle active={remindersOn} disabled={remindersDisabled} onClick={handleReminders}>
                   {remindersLabel}
                 </Toggle>
@@ -182,6 +187,25 @@ export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll })
                 </p>
               </>
             )}
+
+            <Toggle
+              active={emailAlerts}
+              disabled={savingAlerts}
+              onClick={async () => {
+                setSavingAlerts(true)
+                try {
+                  await setEmailAlerts(!emailAlerts)
+                  queryClient.invalidateQueries({ queryKey: ['email-alerts', user?.id] })
+                } finally {
+                  setSavingAlerts(false)
+                }
+              }}
+            >
+              Email me what's due
+            </Toggle>
+            <p className="px-3 pb-1 text-[11px] leading-snug text-ink-muted">
+              One email a day, only when something falls due in the next 48 hours.
+            </p>
 
             <SectionLabel>Data</SectionLabel>
             <button

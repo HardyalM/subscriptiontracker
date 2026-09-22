@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { matchMerchant, normaliseDescription, buildSuggestion, addOneMonth } from './merchantMatching.js'
+import { matchMerchant, normaliseDescription, buildSuggestion, addOneMonth, findCancellationGuide } from './merchantMatching.js'
 import { addMonthsClamped } from './calculations.js'
 
 const patterns = [
@@ -119,5 +119,39 @@ describe('addOneMonth', () => {
 
   it('rolls December into the next year', () => {
     expect(addOneMonth('2026-12-15')).toBe('2027-01-15')
+  })
+})
+
+describe('findCancellationGuide', () => {
+  const guides = [
+    { provider_name: 'Netflix', cancel_url: 'https://www.netflix.com/cancelplan', steps: ['Open Account.'] },
+    { provider_name: 'Klarna', cancel_url: null, steps: ['This is a debt, not a subscription.'] },
+  ]
+
+  it('finds a guide from a commitment name', () => {
+    expect(findCancellationGuide('Netflix', patterns, guides)?.provider_name).toBe('Netflix')
+  })
+
+  it('matches a name the user typed loosely', () => {
+    expect(findCancellationGuide('netflix standard', patterns, guides)?.provider_name).toBe('Netflix')
+  })
+
+  it('finds a BNPL guide', () => {
+    expect(findCancellationGuide('Trainers (Klarna)', patterns, guides)?.provider_name).toBe('Klarna')
+  })
+
+  it('returns null when the pattern matches but no guide exists yet', () => {
+    // 'Amazon' has a pattern but no guide in this list — a near-miss is worse
+    // than nothing, so it must not fall back to another provider's steps.
+    expect(findCancellationGuide('AMAZON MKTPLACE', patterns, guides)).toBeNull()
+  })
+
+  it('returns null when nothing matches', () => {
+    expect(findCancellationGuide('Local window cleaner', patterns, guides)).toBeNull()
+  })
+
+  it('handles empty or missing guides', () => {
+    expect(findCancellationGuide('Netflix', patterns, [])).toBeNull()
+    expect(findCancellationGuide('Netflix', patterns, null)).toBeNull()
   })
 })

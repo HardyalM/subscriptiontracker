@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { annualisedCost, remainingBnplBalance, bnplPaidSoFar, formatGBP } from '../lib/calculations.js'
 import { IconPencil, IconBan, IconRestore } from './Icon.jsx'
+import CancellationGuide from './cancellation-guides/CancellationGuide.jsx'
 
 const frequencyLabel = {
   weekly: '/week',
@@ -131,6 +132,8 @@ export default function CommitmentRow({ commitment, onEdit, onToggleStatus }) {
           </div>
         </div>
       </div>
+
+      {commitment.status === 'active' && <CancellationGuide commitment={commitment} />}
     </div>
   )
 }

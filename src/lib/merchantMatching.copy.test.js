@@ -21,3 +21,11 @@ describe('the Edge Function copy of receiptSchema', () => {
     expect(copy).toBe(source)
   })
 })
+
+describe('the Edge Function copy of alerts', () => {
+  it('is byte-identical to the source of truth', () => {
+    //   cp src/lib/alerts.js supabase/functions/_shared/
+    expect(readFileSync('supabase/functions/_shared/alerts.js', 'utf8'))
+      .toBe(readFileSync('src/lib/alerts.js', 'utf8'))
+  })
+})
