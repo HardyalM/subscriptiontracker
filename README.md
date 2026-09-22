@@ -1,5 +1,7 @@
 # Subscription & BNPL Tracker
 
+[![CI](https://github.com/HardyalM/subscriptiontracker/actions/workflows/ci.yml/badge.svg)](https://github.com/HardyalM/subscriptiontracker/actions/workflows/ci.yml)
+
 Tracks your recurring subscriptions and buy-now-pay-later (BNPL) commitments
 and makes two behavioural-economics effects visible that people normally
 don't see:
@@ -216,10 +218,19 @@ supabase functions deploy
 
 Stated plainly rather than left to be discovered:
 
-- **The UI has not been exercised end to end against real data.** Logic is
-  covered by 257 unit tests and every screen builds and renders, but the
-  create/edit/delete paths, the Plaid Link flow, receipt parsing and the
-  alert email have not been run by a human against live data.
+- **Parts of the UI have not been exercised end to end.** Logic is covered
+  by 257 unit tests, CI is green, and the dashboard has been rendered
+  against real rows — the headline figure it computes matches an
+  independent SQL calculation to the penny, and the batch-insert path has
+  written to live Postgres. Still unexercised by a human: single
+  add/edit/delete through the form, cancel/reactivate (which writes
+  `cancelled_at`), and Keep it / Reconsider — `decision_log` is still
+  empty, so the app's signature feature has never written a row.
+
+- **Four features are built and deployed but unconfigured.** Plaid, receipt
+  parsing, and email alerts need their secrets set; each fails with a clear
+  configuration error rather than crashing, so the app is fully usable
+  without them.
 - **Cancellation URLs were checked once, on 22 Sep 2026.** Four of the
   twelve seeded links were wrong on first check and have been corrected or
   removed. They rot, so they need re-checking periodically; there is no
