@@ -21,199 +21,213 @@ kept-vs-reconsidered count, plus a cumulative "£X kept back by
 reconsidering" figure, is what makes this a commitment device rather than
 just a reminder.
 
-## A note on how this was built
+## Architecture
 
-The first version was written in a sandboxed session with no npm registry
-access, so it was verified by hand-checking syntax (`tsc --noEmit`) and
-running the calculation logic through a zero-dependency Node script rather
-than a real test runner. It's since been confirmed working end to end —
-`npm install && npm run dev` runs cleanly on a real machine. The features
-added after that (design pass, renewal-date fix, demo data, the real
-`vitest` suite, and this round's logomark/Settings-menu/modal-form pass)
-were built in the same kind of sandboxed session and verified the same way —
-logic cross-checked against the actual source with Node, syntax-checked with
-`tsc --noEmit`, every relative import and named export checked to resolve —
-but **haven't yet been run through a real `npm install` by anyone**. Do
-that before treating this round as done, the same way the first round
-needed it. This round only touched components and styling — no calculation
-logic changed, and the full 33-check suite still passes unmodified.
+v2 is a Supabase-backed application. v1 was a single-user, browser-only app
+with no backend; everything below the UI layer was replaced across a phased
+refactor, and `src/lib/calculations.js` came through it unchanged.
+
+| Layer | What runs there |
+| --- | --- |
+| React 18 + Vite + Tailwind | UI. No router; one screen behind an auth gate |
+| TanStack Query | the only data-fetching and caching layer |
+| Supabase Postgres | ten tables, RLS on every one |
+| Supabase Auth | email/password, one workspace auto-provisioned per user |
+| Supabase Edge Functions (Deno) | everything that touches a secret |
+| Supabase Storage | private bucket for uploaded receipts |
+| pg_cron + pg_net | the daily alert run |
+
+### Workspace-first tenancy
+
+The app is single-user in its UI — there is no invite flow and no sharing.
+But `workspace` is the unit of data ownership in the schema, from the first
+migration: every domain table is keyed by `workspace_id`, never by `user_id`,
+and every RLS policy tests membership through one `SECURITY DEFINER` helper,
+`is_workspace_member()`. Turning on real multi-user later is a UI and policy
+change rather than a migration.
+
+That helper being `SECURITY DEFINER` is load-bearing, not incidental: without
+it the policy on `workspace_members` would have to query `workspace_members`,
+and Postgres would recurse.
+
+### The secrets boundary
+
+Nothing that touches a Plaid token, an LLM key or an email key exists in
+client code. The browser bundle contains the Supabase URL and anon key, both
+of which are designed to be public and neither of which grants anything RLS
+does not allow.
+
+| Edge Function | Holds | Auth |
+| --- | --- | --- |
+| `plaid-link-token` | Plaid credentials | caller's JWT |
+| `plaid-exchange` | Plaid credentials, encryption key | caller's JWT |
+| `plaid-webhook` | Plaid credentials, encryption key | Plaid's own ES256 signature |
+| `parse-receipt` | Anthropic API key | caller's JWT |
+| `send-alerts` | Resend key | service-role JWT from cron |
+
+`plaid-webhook` cannot sit behind Supabase's JWT check, because Plaid has no
+Supabase token to send. Rather than leave an open endpoint that triggers API
+calls, it verifies Plaid's signature itself: the algorithm is checked before
+the signature so an `alg: none` token is never treated as verified, `iat`
+bounds replays, and the body hash is compared in constant time.
+
+Plaid access tokens are AES-GCM encrypted into `bank_connection_secrets`, a
+table with RLS enabled and **no policies at all** — so every client query
+returns nothing and only `service_role` can reach them.
+
+## Bank sync is Plaid Sandbox only
+
+Anything the app shows about a connected account is **test data from a fake
+bank**. It is not connected to a real account and cannot be. This is enforced
+in three independent places:
+
+- `PLAID_ENV` can only resolve to `sandbox` in code
+- `bank_connections.plaid_env` has a `CHECK` constraint pinning it
+- every UI surface that mentions a connection says "sandbox — demo data"
+
+Moving to Plaid Production is an account-level business step, not a config
+change, and nothing here assumes it.
+
+**This is a portfolio project, not a regulated financial service.** It gives
+no financial advice, holds no money, and cannot make or cancel a payment.
+
+## What the app does with your data
+
+Everything stays in your own Supabase account except for one feature, which
+asks first, every time:
+
+- **Receipt parsing** sends the image or pasted text you choose to
+  Anthropic's Claude API, once, to read the merchant, amount and dates. It is
+  gated behind an explicit consent screen naming exactly what is sent, and
+  the function refuses to run without a consent flag, so calling it directly
+  cannot skip the step.
+
+Nothing is ever written on your behalf from an automated source. Bank sync
+produces *suggestions* you accept or dismiss; receipt parsing produces a
+*draft* that pre-fills the normal add form. Cancellation guides are
+information only — the app never contacts a provider for you.
 
 ## Testing
 
 ```bash
-npm test          # runs the suite once (src/lib/calculations.test.js, via vitest)
-npm run test:watch
+npm test                                    # Vitest
+node src/lib/calculations.manual-check.mjs  # zero-dependency fallback
+npm run build
 ```
 
-The suite covers annualisation, BNPL balances and paid-off progress, the
-renewal window including overdue items, calendar-safe date advancement
-(leap years, month-end clamping), the reconsidered-savings total, category
-totals, and decision tallying — all against the pure logic in
-`src/lib/calculations.js`, no DOM required. `.github/workflows/ci.yml` runs
-this plus a production build on every push/PR once this repo is on GitHub
-— it does nothing until then; a workflow file with no repo behind it is
-inert.
+257 tests across nine files. The suite for `calculations.js` is a standing
+regression gate: its original 33 assertions have passed unchanged through
+every phase of the refactor, and a change that breaks one is wrong until
+proven otherwise.
 
-`src/lib/calculations.manual-check.mjs` is the original zero-dependency
-script from before `npm install` was possible here. It's redundant now that
-the real suite exists but costs nothing to keep — run it directly with
-`node src/lib/calculations.manual-check.mjs` if you ever want to sanity
-check the logic with literally no dependencies at all.
-
-## What's new since the first version
-
-- **A real logomark**, not a generic wallet icon: an open ring (a commitment's
-  renewal cycle, never fully "closed" while it's active) with a hand pointing
-  from a solid centre dot out to the next renewal point on the ring. It's in
-  the header badge and as the watermark on the headline exposure card.
-- **A proper Settings menu.** The reduce-motion and browser-reminder toggles,
-  plus "Load example data" and "Clear all data" — previously scattered
-  across a loose pill row above the fold, a first-run hint, and a footer
-  link — now live in one dropdown off a sliders icon in the header, grouped
-  into Appearance / Notifications / Data. The empty-state's own "Load
-  example data" prompt stays where it is, since that's the moment it's most
-  useful.
-- **The add/edit form is a modal**, not an inline block that used to push
-  the whole page down while it was open. Opens centred over the page, closes
-  on Escape, a backdrop click, or its own close button; scrolls internally
-  on short screens instead of overflowing.
-- **Renewal dates no longer go stale.** Tapping "Keep it" advances a
-  subscription to its next renewal date, or a BNPL plan to its next
-  instalment (decrementing instalments remaining). Previously the date just
-  sat there and needed manual editing every cycle.
-- **Overdue items no longer disappear.** The checkpoint used to only show
-  items 0–7 days out; anything that slipped past its date silently vanished
-  with nothing resolved. It now stays visible, labelled "N days overdue",
-  until you act on it.
-- **"£X kept back by reconsidering"** — a running total next to the
-  kept/reconsidered tally, computed from the actual £ value at the moment
-  each "Reconsider" was tapped.
-- **BNPL paid-off progress** — the `totalOriginalAmount` field (previously
-  captured but never shown anywhere) now renders as a small progress bar
-  on each BNPL row.
-- **Confirm before Cancel** — a destructive action now needs two taps
-  within 3 seconds, not one.
-- **Reduce-motion toggle and opt-in browser reminders**, in a small
-  settings bar above the headline number — bringing this in line with the
-  accessibility baseline in MediMate/FlowMate. The reminder is honest about
-  its limit: with no backend/service worker, it can only fire while this
-  tab is open, so it's a same-session nudge, not a push notification.
-- **"Load example data"**, shown only on an empty dashboard — seeds six
-  realistic commitments (mixed subscription/BNPL, some urgent, one
-  deliberately overdue) so the headline number and renewal checkpoint are
-  visible in seconds instead of requiring manual entry first. Pairs with a
-  confirmed "Clear all data" in the footer.
-- **A real test suite** (`npm test`, via vitest) and a GitHub Actions
-  workflow — see Testing above.
+Three modules are shipped to Edge Functions as byte-identical copies, because
+Deno cannot reach into `src/lib`. A test asserts each copy matches its source;
+that test is the only thing preventing drift.
 
 ## Getting started
 
 ```bash
 npm install
+cp .env.example .env.local   # fill in from Supabase -> Settings -> API
 npm run dev
 ```
 
-Open the printed local URL. Data is saved to `localStorage`, so it survives
-a page reload without any backend.
+Vite reads environment files only at startup, so restart the dev server after
+creating `.env.local`.
 
-To build for production:
+### Database
 
 ```bash
-npm run build
-npm run preview   # sanity-check the production build locally
+supabase link --project-ref <your-project-ref>
+supabase db push
 ```
+
+### Edge Function secrets
+
+Features whose secrets are unset fail with a clear configuration error rather
+than crashing, so the app is usable without any of them.
+
+```bash
+supabase secrets set \
+  PLAID_CLIENT_ID=... PLAID_SECRET=... PLAID_ENV=sandbox \
+  TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  ANTHROPIC_API_KEY=... \
+  RESEND_API_KEY=... ALERT_FROM_ADDRESS=... APP_URL=...
+```
+
+Keep `TOKEN_ENCRYPTION_KEY` safe — rotating it makes stored Plaid tokens
+undecryptable.
+
+The scheduled alert job reads the service-role key from Vault at call time
+rather than embedding it in `cron.job`, which is a readable table:
+
+```sql
+select vault.create_secret('<service_role_key>', 'service_role_key');
+```
+
+### Auth configuration
+
+In **Authentication -> URL Configuration**, set the Site URL and add the app
+origin to Redirect URLs. Confirmation links point at the Site URL, so a
+mismatch produces a link that goes nowhere.
 
 ## Project structure
 
 ```
 src/
-  lib/
-    constants.js       Commitment type/frequency/category enums
-    calculations.js    Pure calculation logic (annualisation, exposure,
-                        renewal window incl. overdue, calendar-safe date
-                        advancement, reconsidered-savings, category totals,
-                        decision tally) — zero React/DOM imports, unit-tested
-                        standalone
-    calculations.test.js       Real test suite — run with: npm test
-    calculations.manual-check.mjs   Zero-dependency fallback — node <path>
-    csvExport.js        CSV string building + browser download trigger
-    storage.js           localStorage-backed useCommitments() hook
-    notifications.js     Browser Notification API wrapper (opt-in, tab-only)
-    demoData.js           Builds the "Load example data" seed set
-  components/
-    Icon.jsx              Small hand-rolled icon set, no dependency —
-                            includes the app's own logomark (IconLogo)
-    Modal.jsx              Reusable centred-dialog wrapper (used by the
-                            add/edit form)
-    CommitmentForm.jsx     Add/edit form, rendered inside Modal
-    Dashboard.jsx          List of all commitments (dual-frame cost display)
-    CommitmentRow.jsx      One commitment's row (incl. BNPL progress bar,
-                            confirm-before-cancel)
-    HeadlineExposure.jsx   The one big number at the top
-    RenewalCheckpoint.jsx  The signature feature
-    CategoryBreakdown.jsx  Recharts bar chart, grouped by category
-    ExportButton.jsx       CSV export trigger
-    SettingsMenu.jsx        Header dropdown: reduce-motion + browser-reminder
-                            toggles, load example data, clear all data
-  App.jsx                  Wires everything together
+  lib/            pure logic, data hooks, mappers — all unit-tested
+  components/     flat files are v1; subfolders are v2 features
+    auth/ bank-sync/ calendar/ cancellation-guides/ manage/ receipts/
+supabase/
+  migrations/     schema, RLS, seeds
+  functions/      Edge Functions; _shared/ holds the copied pure modules
 ```
 
-## Data model
+`src/lib/calculations.js` is the most valuable file in the repo: pure,
+framework-free, and the only place business rules live. Where a database row
+disagrees with the shape it expects, a mapper at the data-access boundary
+reconciles it — the calculations are never bent to fit a row.
 
-A single `Commitment` entity (kept deliberately simple, per spec):
+## Deploying
 
-```js
-{
-  id, name,
-  type: 'subscription' | 'bnpl',
-  costPerPayment: number,
-  frequency: 'weekly' | 'monthly' | 'one-off installments',
-  nextPaymentDate: 'YYYY-MM-DD',
-  totalOriginalAmount: number | null,      // BNPL only
-  instalmentsRemaining: number | null,     // BNPL only
-  status: 'active' | 'cancelled',
-  category: string,                        // Streaming / Retail BNPL / Other subscriptions / Other
-  decisionLog: [{ date, decision: 'kept' | 'reconsidered', amount: number }],
-  // `amount` is the commitment's exposure (annualised cost, or BNPL
-  // remaining balance) captured at the moment of that decision — this is
-  // what the "£X kept back by reconsidering" total is built from.
-}
-```
+The frontend is a static Vite build; Vercel, Netlify or the included
+`Dockerfile` for Cloud Run all work. Set `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` in the host's environment, and add the deployed
+origin to Supabase's Redirect URLs.
 
-## Swapping localStorage for Firestore (AI Studio path)
-
-If you take this into AI Studio and want Firestore persistence instead of
-`localStorage` (e.g. to match the multi-device behaviour of MediMate),
-everything reads and writes commitments through one hook:
-`useCommitments()` in `src/lib/storage.js`. Replace its body with a
-Firestore `onSnapshot` subscription and a `setDoc`/`updateDoc` write, keep
-the same `[commitments, setCommitments]` return shape, and no other file
-needs to change.
-
-## Deploying to Cloud Run
-
-A `Dockerfile` and `nginx.conf` are included, matching the MediMate/FlowMate
-deploy pattern (multi-stage build → static files served by nginx, listening
-on `$PORT`). **This step needs your own GCP account and can't be done from
-a sandboxed session** — it needs `gcloud auth login` against your own
-Google account and a project with billing enabled. Once that's set up, it's
-one command from inside this folder:
+Edge Functions deploy separately:
 
 ```bash
-gcloud run deploy subscription-bnpl-tracker --source . --region <your-region>
+supabase functions deploy
 ```
 
-That prints a live `*.run.app` URL — that's the link that belongs on your
-CV, not a GitHub repo link, if you want to claim "deployed" rather than
-"deployable." If you'd rather not deal with GCP billing setup, Vercel or
-Netlify will build and host this for free directly from a GitHub repo with
-zero config (it's a static Vite app, no backend) — either is a legitimate
-substitute for a personal project; Cloud Run only matters here because it
-matches your other two apps' deploy story.
+### Operational notes
 
-## Scope
+- **Never add `net` to Supabase's exposed schemas.** pg_net grants `EXECUTE`
+  on its functions to `PUBLIC` and is owned by `supabase_admin`, so the grant
+  cannot be revoked from a migration. It is unreachable today because
+  PostgREST exposes only `public` and `graphql_public`; exposing `net` would
+  turn it into server-side request forgery.
+- Enable **leaked password protection** in Authentication settings.
+- Use separate Supabase projects for staging and production. Both need their
+  own secrets, Vault entry and URL configuration.
 
-Deliberately out of scope for v1 (per the original spec — do not add these
-without re-opening scope): Open Banking / bank statement integration,
-multi-user accounts, real cancellation automation with providers, AI-powered
-statement parsing.
+## Known gaps
+
+Stated plainly rather than left to be discovered:
+
+- **The UI has not been exercised end to end against real data.** Logic is
+  covered by 257 unit tests and every screen builds and renders, but the
+  create/edit/delete paths, the Plaid Link flow, receipt parsing and the
+  alert email have not been run by a human against live data.
+- **Cancellation URLs are unverified.** They were curated by hand, not by
+  visiting each one, and cancel URLs rot.
+- **Decision recording is two writes without a transaction.** PostgREST has
+  no client-side transaction, so a failure between them could log a decision
+  without advancing the date. Both invalidate on settle, so the UI re-reads
+  the truth. An RPC would close it.
+- **Renewal dates drift.** 31 Jan advances to 28 Feb and then to 28 Mar, not
+  back to the 31st, because each step starts from the previously clamped
+  date. A test pins this so a change to it is deliberate; whether billing
+  should re-anchor to the original day of month is an open question.
+- **No error reporting service.** A caught render error goes to the console.

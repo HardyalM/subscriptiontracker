@@ -8,7 +8,7 @@ import {
   useClearCommitments,
   useImportCommitments,
 } from './lib/commitmentQueries.js'
-import { filterAndSortCommitments, DEFAULT_FILTERS } from './lib/commitmentFilters.js'
+import { filterAndSortCommitments, DEFAULT_FILTERS, hasActiveFilters } from './lib/commitmentFilters.js'
 import { getRenewalCheckpointItems } from './lib/calculations.js'
 import { notifyIfDue } from './lib/notifications.js'
 import { buildDemoCommitments } from './lib/demoData.js'
@@ -202,7 +202,12 @@ export default function App() {
           />
         )}
 
-        <Dashboard commitments={visible} onEdit={handleEdit} onToggleStatus={handleToggleStatus} />
+        <Dashboard
+          commitments={visible}
+          onEdit={handleEdit}
+          onToggleStatus={handleToggleStatus}
+          isFiltered={commitments.length > 0 && hasActiveFilters(filters)}
+        />
 
         <BankSyncCard />
 

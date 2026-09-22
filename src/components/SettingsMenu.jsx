@@ -85,6 +85,7 @@ export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll })
   const queryClient = useQueryClient()
   const { data: emailAlerts = false } = useEmailAlertPreference()
   const [savingAlerts, setSavingAlerts] = useState(false)
+  const [alertsError, setAlertsError] = useState('')
   const [open, setOpen] = useState(false)
   const [reducedMotion, setReducedMotion] = useReducedMotion()
   const [permission, setPermission] = useState(getNotificationPermission)
@@ -193,9 +194,14 @@ export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll })
               disabled={savingAlerts}
               onClick={async () => {
                 setSavingAlerts(true)
+                setAlertsError('')
                 try {
                   await setEmailAlerts(!emailAlerts)
                   queryClient.invalidateQueries({ queryKey: ['email-alerts', user?.id] })
+                } catch {
+                  // Without this the rejection escapes as an unhandled
+                  // promise and the toggle silently springs back.
+                  setAlertsError("Couldn't save that. Your setting is unchanged.")
                 } finally {
                   setSavingAlerts(false)
                 }
@@ -206,6 +212,11 @@ export default function SettingsMenu({ hasCommitments, onLoadDemo, onClearAll })
             <p className="px-3 pb-1 text-[11px] leading-snug text-ink-muted">
               One email a day, only when something falls due in the next 48 hours.
             </p>
+            {alertsError && (
+              <p role="alert" className="px-3 pb-1 text-[11px] leading-snug text-status-critical">
+                {alertsError}
+              </p>
+            )}
 
             <SectionLabel>Data</SectionLabel>
             <button

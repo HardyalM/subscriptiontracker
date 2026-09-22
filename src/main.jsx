@@ -5,16 +5,19 @@ import App from './App.jsx'
 import { queryClient } from './lib/queryClient.js'
 import { SessionProvider } from './lib/session.jsx'
 import AuthGate from './components/auth/AuthGate.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        <AuthGate>
-          <App />
-        </AuthGate>
-      </SessionProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider>
+          <AuthGate>
+            <App />
+          </AuthGate>
+        </SessionProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

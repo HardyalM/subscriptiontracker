@@ -5,7 +5,7 @@ import { IconWallet } from './Icon.jsx'
  * Every commitment, per-payment cost and annualised/remaining cost shown
  * side by side (spec requirement — never show one without the other).
  */
-export default function Dashboard({ commitments, onEdit, onToggleStatus }) {
+export default function Dashboard({ commitments, onEdit, onToggleStatus, isFiltered = false }) {
   const active = commitments.filter((c) => c.status === 'active')
   const cancelled = commitments.filter((c) => c.status === 'cancelled')
 
@@ -16,7 +16,9 @@ export default function Dashboard({ commitments, onEdit, onToggleStatus }) {
           <IconWallet className="h-5 w-5" />
         </div>
         <p className="text-sm text-ink-secondary">
-          No commitments yet — add your first subscription or BNPL plan above to see it here.
+          {isFiltered
+            ? 'Nothing matches those filters. Clear them to see everything again.'
+            : 'No commitments yet — add your first subscription or BNPL plan above to see it here.'}
         </p>
       </div>
     )
