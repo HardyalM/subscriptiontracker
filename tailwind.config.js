@@ -40,6 +40,10 @@ export default {
           good: '#0ca30c',
           warning: '#d97a06',
           critical: '#d03b3b',
+          // Text-weight variant. #d03b3b reads well as a fill or an icon,
+          // but as small text on its own pale tint it measures 4.41:1 —
+          // under AA. This step measures 5.02:1 on the same background.
+          'critical-text': '#c23434',
         },
       },
       fontFamily: {
@@ -50,6 +54,16 @@ export default {
         card: '0 1px 2px rgba(11,11,11,0.04), 0 1px 1px rgba(11,11,11,0.03)',
         'card-hover': '0 4px 16px rgba(11,11,11,0.07), 0 1px 2px rgba(11,11,11,0.04)',
         raised: '0 8px 30px rgba(21,53,99,0.10), 0 2px 8px rgba(21,53,99,0.06)',
+        // Layered rather than one big blur: a tight contact shadow, a mid
+        // ambient one, and a wide soft one. That is what makes a surface
+        // read as sitting *on* the page rather than having a grey halo
+        // airbrushed behind it.
+        elevated:
+          '0 1px 2px rgba(21,53,99,0.06), 0 8px 24px -4px rgba(21,53,99,0.10), 0 24px 48px -12px rgba(21,53,99,0.12)',
+        // For the primary action: a coloured shadow tinted to the button
+        // itself, so it glows rather than smudges.
+        action: '0 1px 2px rgba(22,63,119,0.24), 0 6px 16px -4px rgba(22,63,119,0.40)',
+        'action-hover': '0 2px 4px rgba(22,63,119,0.24), 0 10px 24px -6px rgba(22,63,119,0.48)',
       },
       borderRadius: {
         xl2: '1.25rem',

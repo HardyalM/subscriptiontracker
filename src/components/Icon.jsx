@@ -179,6 +179,46 @@ export function IconCamera({ className }) {
   )
 }
 
+export function IconSpinner({ className }) {
+  // Stroke-dash arc rather than a filled ring, so it keeps the same 1.75
+  // stroke weight as every other glyph here. Animation is applied by the
+  // caller so reduce-motion can suppress it.
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M10 2.5a7.5 7.5 0 1 1-7.5 7.5" />
+    </svg>
+  )
+}
+
+export function IconEye({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M1.8 10S4.6 4.8 10 4.8 18.2 10 18.2 10 15.4 15.2 10 15.2 1.8 10 1.8 10z" />
+      <circle cx="10" cy="10" r="2.4" />
+    </svg>
+  )
+}
+
+export function IconEyeOff({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M7.9 5.2A7.9 7.9 0 0 1 10 4.8c5.4 0 8.2 5.2 8.2 5.2a14.6 14.6 0 0 1-2.4 3.1" />
+      <path d="M4.5 6.3A14.4 14.4 0 0 0 1.8 10S4.6 15.2 10 15.2a7.7 7.7 0 0 0 2.9-.55" />
+      <path d="M8.4 8.5a2.4 2.4 0 0 0 3.3 3.4" />
+      <path d="M3 3l14 14" />
+    </svg>
+  )
+}
+
+export function IconShield({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M10 2.4l6 2.2v4.6c0 3.6-2.5 6.7-6 8.4-3.5-1.7-6-4.8-6-8.4V4.6l6-2.2z" />
+      <path d="M7.4 10.1l1.9 1.9 3.4-3.6" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>
