@@ -220,8 +220,10 @@ Stated plainly rather than left to be discovered:
   covered by 257 unit tests and every screen builds and renders, but the
   create/edit/delete paths, the Plaid Link flow, receipt parsing and the
   alert email have not been run by a human against live data.
-- **Cancellation URLs are unverified.** They were curated by hand, not by
-  visiting each one, and cancel URLs rot.
+- **Cancellation URLs were checked once, on 22 Sep 2026.** Four of the
+  twelve seeded links were wrong on first check and have been corrected or
+  removed. They rot, so they need re-checking periodically; there is no
+  automated check for this.
 - **Decision recording is two writes without a transaction.** PostgREST has
   no client-side transaction, so a failure between them could log a decision
   without advancing the date. Both invalidate on settle, so the UI re-reads
