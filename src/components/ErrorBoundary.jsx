@@ -30,6 +30,12 @@ export default class ErrorBoundary extends Component {
   render() {
     if (!this.state.error) return this.props.children
 
+    // A `fallback` makes this a local boundary: the failure is contained to
+    // one part of the page instead of replacing the whole app. Used around
+    // non-essential surfaces, where losing the feature is much better than
+    // losing the screen.
+    if (this.props.fallback !== undefined) return this.props.fallback
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface-page px-4">
         <div className="w-full max-w-md rounded-2xl border border-ink-muted/12 bg-white p-6 shadow-card">

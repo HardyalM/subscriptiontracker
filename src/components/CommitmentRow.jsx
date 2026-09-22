@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { annualisedCost, remainingBnplBalance, bnplPaidSoFar, formatGBP } from '../lib/calculations.js'
 import { IconPencil, IconBan, IconRestore } from './Icon.jsx'
 import CancellationGuide from './cancellation-guides/CancellationGuide.jsx'
+import ErrorBoundary from './ErrorBoundary.jsx'
 
 const frequencyLabel = {
   weekly: '/week',
@@ -133,7 +134,15 @@ export default function CommitmentRow({ commitment, onEdit, onToggleStatus }) {
         </div>
       </div>
 
-      {commitment.status === 'active' && <CancellationGuide commitment={commitment} />}
+      {/* The guide is contained on purpose: it is useful, but losing one is
+          nothing next to losing the whole dashboard. Rendering nothing is a
+          complete, honest fallback — the row still shows every figure that
+          matters. */}
+      {commitment.status === 'active' && (
+        <ErrorBoundary fallback={null}>
+          <CancellationGuide commitment={commitment} />
+        </ErrorBoundary>
+      )}
     </div>
   )
 }
