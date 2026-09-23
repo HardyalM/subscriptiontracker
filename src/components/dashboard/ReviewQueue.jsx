@@ -6,7 +6,7 @@ import {
   daysUntil,
   formatGBP,
 } from '../../lib/calculations.js'
-import { IconCalendarClock, IconCheck, IconRewind } from '../Icon.jsx'
+import { IconCalendarClock, IconCheck, IconRewind, IconSpinner } from '../Icon.jsx'
 import StatusBadge from './StatusBadge.jsx'
 
 /**
@@ -26,7 +26,7 @@ import StatusBadge from './StatusBadge.jsx'
  * reconsideredSavingsTotal — so the behaviour is unchanged and still covered
  * by the calculations suite.
  */
-export default function ReviewQueue({ commitments, onAction, id }) {
+export default function ReviewQueue({ commitments, onAction, pending, id }) {
   const items = getRenewalCheckpointItems(commitments)
   const { kept, reconsidered } = decisionTally(commitments)
   const saved = reconsideredSavingsTotal(commitments)
@@ -96,22 +96,22 @@ export default function ReviewQueue({ commitments, onAction, id }) {
               </div>
 
               <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
+                <DecisionButton
+                  label="Keep it"
+                  icon={<IconCheck className="h-4 w-4" />}
+                  tone="good"
+                  busy={pending?.isPending(`decision:${commitment.id}:kept`)}
+                  locked={pending?.isPendingPrefix(`decision:${commitment.id}:`)}
                   onClick={() => onAction(commitment, 'kept')}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-ink-muted/20 bg-white px-4 text-sm font-semibold text-ink-primary transition-all duration-150 hover:border-status-good/40 hover:bg-status-good/[0.06] hover:text-status-good focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-good/40 active:translate-y-px"
-                >
-                  <IconCheck className="h-4 w-4" />
-                  Keep it
-                </button>
-                <button
-                  type="button"
+                />
+                <DecisionButton
+                  label="Reconsider"
+                  icon={<IconRewind className="h-4 w-4" />}
+                  tone="brand"
+                  busy={pending?.isPending(`decision:${commitment.id}:reconsidered`)}
+                  locked={pending?.isPendingPrefix(`decision:${commitment.id}:`)}
                   onClick={() => onAction(commitment, 'reconsidered')}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-ink-muted/20 bg-white px-4 text-sm font-semibold text-ink-primary transition-all duration-150 hover:border-brand-500/40 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 active:translate-y-px"
-                >
-                  <IconRewind className="h-4 w-4" />
-                  Reconsider
-                </button>
+                />
               </div>
             </li>
           )
@@ -147,5 +147,38 @@ function Tally({ kept, reconsidered, saved, inline = false }) {
         </span>
       )}
     </div>
+  )
+}
+
+/**
+ * One of the two decision buttons.
+ *
+ * `busy` is this button's own request in flight: it swaps its icon for a
+ * spinner. `locked` is *any* decision on this row in flight: both buttons
+ * disable, so a second tap on a slow connection can't log the decision twice
+ * — or log both answers at once.
+ *
+ * The two tones differ only on hover. At rest they are identical, because
+ * the app should not be nudging the answer.
+ */
+function DecisionButton({ label, icon, tone, busy = false, locked = false, onClick }) {
+  const hover =
+    tone === 'good'
+      ? 'hover:border-status-good/40 hover:bg-status-good/[0.06] hover:text-status-good focus-visible:ring-status-good/40'
+      : 'hover:border-brand-500/40 hover:bg-brand-50 hover:text-brand-700 focus-visible:ring-brand-500/40'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={locked}
+      aria-busy={busy}
+      className={`inline-flex h-10 min-w-[7.25rem] items-center justify-center gap-2 rounded-xl border border-ink-muted/20 bg-white px-4 text-sm font-semibold text-ink-primary shadow-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-px disabled:cursor-wait ${
+        locked && !busy ? 'opacity-50' : ''
+      } ${locked ? '' : hover}`}
+    >
+      {busy ? <IconSpinner className="h-4 w-4 animate-spin" /> : icon}
+      {busy ? 'Saving…' : label}
+    </button>
   )
 }

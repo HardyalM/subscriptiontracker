@@ -68,6 +68,35 @@ export default {
       borderRadius: {
         xl2: '1.25rem',
       },
+      // Tailwind 3's opacity scale is multiples of 5, and an opacity
+      // modifier off that scale (`/8`, `/12`) emits no CSS at all — silently.
+      // The design uses both: /12 is the hairline border on every card,
+      // modal and menu, and /8 is the tint behind badges and alerts. Neither
+      // had ever rendered until this was added. The sweep that found them
+      // checked every modifier in src against the built stylesheet.
+      opacity: {
+        8: '0.08',
+        12: '0.12',
+      },
+      // Entry motion for overlays. Short and eased-out: a sheet that takes
+      // longer than ~200ms to arrive feels like lag, not polish. All of it
+      // is neutralised by the global reduce-motion rule in index.css.
+      keyframes: {
+        'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
+        'sheet-in': {
+          from: { opacity: '0', transform: 'translateY(8px) scale(0.98)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'menu-in': {
+          from: { opacity: '0', transform: 'translateY(-4px) scale(0.97)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 160ms ease-out',
+        'sheet-in': 'sheet-in 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'menu-in': 'menu-in 140ms cubic-bezier(0.16, 1, 0.3, 1)',
+      },
     },
   },
   plugins: [],

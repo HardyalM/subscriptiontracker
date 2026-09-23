@@ -219,6 +219,44 @@ export function IconShield({ className }) {
   )
 }
 
+export function IconRepeat({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M4 8.5V7.4A2.4 2.4 0 016.4 5h9.1m0 0L13 2.5M15.5 5L13 7.5" />
+      <path d="M16 11.5v1.1a2.4 2.4 0 01-2.4 2.4H4.5m0 0L7 17.5M4.5 15L7 12.5" />
+    </svg>
+  )
+}
+
+export function IconInbox({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M2.8 11.2l2-6.1A1.6 1.6 0 016.3 4h7.4a1.6 1.6 0 011.5 1.1l2 6.1" />
+      <path d="M2.8 11.2V15a1.6 1.6 0 001.6 1.6h11.2a1.6 1.6 0 001.6-1.6v-3.8h-4.3a2.9 2.9 0 01-5.8 0H2.8z" />
+    </svg>
+  )
+}
+
+export function IconMore({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} fill="currentColor" stroke="none">
+      <circle cx="4.5" cy="10" r="1.5" />
+      <circle cx="10" cy="10" r="1.5" />
+      <circle cx="15.5" cy="10" r="1.5" />
+    </svg>
+  )
+}
+
+export function IconTrash({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M3.5 5.5h13M8 5.5V4a1 1 0 011-1h2a1 1 0 011 1v1.5" />
+      <path d="M5 5.5l.8 10.1A1.6 1.6 0 007.4 17h5.2a1.6 1.6 0 001.6-1.4L15 5.5" />
+      <path d="M8.5 9v4.5M11.5 9v4.5" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>

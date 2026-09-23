@@ -25,6 +25,9 @@ import {
   projectOccurrences,
   forecastByDay,
   cumulativeOutflow,
+  monthlyEquivalent,
+  monthlyRunRate,
+  nextBnplPayment,
 } from './calculations.js'
 
 const today = new Date('2026-09-21')
@@ -470,5 +473,107 @@ describe('cumulativeOutflow', () => {
   it('keeps the per-day outflow alongside the running total', () => {
     const [first] = cumulativeOutflow([sub], 1, today)
     expect(first).toMatchObject({ outflow: 10, cumulative: 10 })
+  })
+})
+
+// --- Dashboard metrics -----------------------------------------------------
+
+describe('monthlyEquivalent', () => {
+  const sub = { type: 'subscription', status: 'active', frequency: 'monthly', costPerPayment: 12 }
+
+  it('is the payment itself for a monthly subscription', () => {
+    expect(monthlyEquivalent(sub)).toBe(12)
+  })
+
+  it('spreads a weekly subscription across the month via annualisedCost', () => {
+    // £5 a week = £260 a year = £21.67 a month.
+    expect(monthlyEquivalent({ ...sub, frequency: 'weekly', costPerPayment: 5 })).toBeCloseTo(260 / 12, 9)
+  })
+
+  it('is the instalment for an active monthly BNPL plan', () => {
+    expect(
+      monthlyEquivalent({ type: 'bnpl', status: 'active', frequency: 'monthly', costPerPayment: 25, instalmentsRemaining: 3 }),
+    ).toBe(25)
+  })
+
+  it('is zero for a fixed BNPL plan that is paid off', () => {
+    expect(
+      monthlyEquivalent({ type: 'bnpl', status: 'active', frequency: 'monthly', costPerPayment: 25, instalmentsRemaining: 0 }),
+    ).toBe(0)
+  })
+
+  it('still counts a recurring BNPL plan with nothing left in the current block', () => {
+    expect(
+      monthlyEquivalent({ type: 'bnpl', bnplMode: 'recurring', status: 'active', frequency: 'monthly', costPerPayment: 25, instalmentsRemaining: 0 }),
+    ).toBe(25)
+  })
+
+  it('is zero for BNPL with no cadence', () => {
+    expect(
+      monthlyEquivalent({ type: 'bnpl', status: 'active', frequency: 'one-off installments', costPerPayment: 25, instalmentsRemaining: 2 }),
+    ).toBe(0)
+  })
+
+  it('is zero for anything cancelled', () => {
+    expect(monthlyEquivalent({ ...sub, status: 'cancelled' })).toBe(0)
+  })
+})
+
+describe('monthlyRunRate', () => {
+  it('sums every active commitment', () => {
+    const list = [
+      { type: 'subscription', status: 'active', frequency: 'monthly', costPerPayment: 10 },
+      { type: 'bnpl', status: 'active', frequency: 'monthly', costPerPayment: 20, instalmentsRemaining: 2 },
+      { type: 'subscription', status: 'cancelled', frequency: 'monthly', costPerPayment: 99 },
+    ]
+    expect(monthlyRunRate(list)).toBe(30)
+  })
+
+  it('is twelfth of the subscription part of the headline', () => {
+    // Guards the relationship the dashboard shows side by side.
+    const subs = [
+      { type: 'subscription', status: 'active', frequency: 'monthly', costPerPayment: 12.99 },
+      { type: 'subscription', status: 'active', frequency: 'weekly', costPerPayment: 4.5 },
+    ]
+    expect(monthlyRunRate(subs) * 12).toBeCloseTo(totalAnnualExposure(subs), 9)
+  })
+
+  it('is zero for an empty list', () => {
+    expect(monthlyRunRate([])).toBe(0)
+  })
+})
+
+describe('nextBnplPayment', () => {
+  const plan = (over) => ({
+    type: 'bnpl',
+    status: 'active',
+    frequency: 'monthly',
+    costPerPayment: 20,
+    instalmentsRemaining: 2,
+    ...over,
+  })
+
+  it('returns the soonest plan', () => {
+    const list = [plan({ id: 'b', nextPaymentDate: '2026-10-10' }), plan({ id: 'a', nextPaymentDate: '2026-10-01' })]
+    expect(nextBnplPayment(list).id).toBe('a')
+  })
+
+  it('puts an overdue plan first rather than hiding it', () => {
+    const list = [plan({ id: 'later', nextPaymentDate: '2026-10-01' }), plan({ id: 'overdue', nextPaymentDate: '2026-09-01' })]
+    expect(nextBnplPayment(list).id).toBe('overdue')
+  })
+
+  it('ignores subscriptions, cancelled plans and paid-off plans', () => {
+    const list = [
+      { type: 'subscription', status: 'active', nextPaymentDate: '2026-09-01' },
+      plan({ id: 'cancelled', status: 'cancelled', nextPaymentDate: '2026-09-02' }),
+      plan({ id: 'paid', instalmentsRemaining: 0, nextPaymentDate: '2026-09-03' }),
+      plan({ id: 'live', nextPaymentDate: '2026-09-04' }),
+    ]
+    expect(nextBnplPayment(list).id).toBe('live')
+  })
+
+  it('returns null when nothing is owed', () => {
+    expect(nextBnplPayment([])).toBeNull()
   })
 })

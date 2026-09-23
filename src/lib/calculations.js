@@ -471,6 +471,60 @@ export function cumulativeOutflow(commitments, monthsAhead = 3, today = new Date
     })
 }
 
+/**
+ * What one commitment costs per month, as a steady rate.
+ *
+ * Subscriptions reuse annualisedCost() and divide by twelve, so the weekly
+ * and monthly multipliers still live in exactly one place. BNPL has no
+ * annualised figure (see annualisedCost), so its rate is the instalment
+ * itself at the plan's cadence — and zero once a fixed plan is paid off, or
+ * for 'one-off installments', which has no cadence to express as a rate.
+ */
+export function monthlyEquivalent(commitment) {
+  if (commitment.status !== 'active') return 0
+
+  if (commitment.type === 'subscription') {
+    return (annualisedCost(commitment) || 0) / 12
+  }
+
+  const cost = Number(commitment.costPerPayment) || 0
+  const paidOff = commitment.bnplMode !== 'recurring' && (Number(commitment.instalmentsRemaining) || 0) <= 0
+  if (paidOff) return 0
+
+  if (commitment.frequency === 'weekly') return (cost * 52) / 12
+  if (commitment.frequency === 'monthly') return cost
+  return 0
+}
+
+/**
+ * Total monthly outflow rate across everything active. Shown beside the
+ * annualised figure, never instead of it — restating a year as a
+ * comfortable monthly number on its own is the framing this app exists to
+ * counter.
+ */
+export function monthlyRunRate(commitments) {
+  return commitments.reduce((sum, c) => sum + monthlyEquivalent(c), 0)
+}
+
+/**
+ * The soonest payment owed on any active BNPL plan, or null.
+ *
+ * Overdue plans are included and sort first: an instalment that was due
+ * yesterday is still the next one owed, and hiding it behind a later date
+ * would be the less honest answer.
+ */
+export function nextBnplPayment(commitments) {
+  const owing = commitments.filter(
+    (c) =>
+      c.status === 'active' &&
+      c.type === 'bnpl' &&
+      c.nextPaymentDate &&
+      (c.bnplMode === 'recurring' || (Number(c.instalmentsRemaining) || 0) > 0),
+  )
+  owing.sort((a, b) => (a.nextPaymentDate < b.nextPaymentDate ? -1 : a.nextPaymentDate > b.nextPaymentDate ? 1 : 0))
+  return owing[0] ?? null
+}
+
 export function formatGBP(amount) {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',

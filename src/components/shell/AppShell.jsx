@@ -16,7 +16,12 @@ import { IconLogo } from '../Icon.jsx'
 export default function AppShell({ actions, menu, children }) {
   return (
     <div className="min-h-screen bg-surface-page">
-      <header className="sticky top-0 z-20 border-b border-ink-muted/10 bg-surface-page/85 backdrop-blur-md supports-[backdrop-filter]:bg-surface-page/70">
+      {/* Frosted glass: translucent white over the page, blurred and
+          slightly saturated so colour from the cards scrolling beneath
+          reads through as a soft tint rather than a grey smear. Falls back
+          to near-opaque where backdrop-filter is unsupported, so text stays
+          legible either way. */}
+      <header className="sticky top-0 z-20 border-b border-ink-muted/[0.12] bg-white/90 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset] supports-[backdrop-filter]:bg-white/65 supports-[backdrop-filter]:backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-action">

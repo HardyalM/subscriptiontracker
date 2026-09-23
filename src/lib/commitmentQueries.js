@@ -178,6 +178,26 @@ export function useRecordDecision() {
   )
 }
 
+/**
+ * Permanently delete one commitment.
+ *
+ * Deliberately not optimistic. Every other action in this file paints its
+ * result immediately and reconciles later, because each is reversible —
+ * cancel can be reactivated, a decision is just a log entry. Deletion is the
+ * one that can't be taken back, so the row stays on screen until the
+ * database has confirmed it is gone. The confirm dialog shows progress in
+ * the meantime.
+ *
+ * decision_log rows go with it via ON DELETE CASCADE, which the confirm
+ * dialog tells the user before they commit.
+ */
+export function useDeleteCommitment() {
+  return useCommitmentMutation(async (commitment) => {
+    const { error } = await supabase.from('commitments').delete().eq('id', commitment.id)
+    if (error) throw error
+  })
+}
+
 /** Replace everything with a fresh demo set — "Load example data". */
 export function useReplaceCommitments() {
   return useCommitmentMutation(async (commitments, workspaceId) => {

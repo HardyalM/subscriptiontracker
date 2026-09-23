@@ -7,7 +7,9 @@ import {
   useReplaceCommitments,
   useClearCommitments,
   useImportCommitments,
+  useDeleteCommitment,
 } from './lib/commitmentQueries.js'
+import { usePendingActions } from './lib/usePendingActions.js'
 import { filterAndSortCommitments, DEFAULT_FILTERS, hasActiveFilters } from './lib/commitmentFilters.js'
 import { getRenewalCheckpointItems } from './lib/calculations.js'
 import { notifyIfDue } from './lib/notifications.js'
@@ -25,6 +27,7 @@ import CategoryBreakdown from './components/CategoryBreakdown.jsx'
 import ExportButton from './components/ExportButton.jsx'
 import CommitmentForm from './components/CommitmentForm.jsx'
 import Modal from './components/Modal.jsx'
+import ConfirmDialog from './components/ConfirmDialog.jsx'
 import ImportLocalData from './components/ImportLocalData.jsx'
 import WriteFeedback from './components/WriteFeedback.jsx'
 import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
@@ -44,6 +47,8 @@ export default function App() {
   const replaceCommitments = useReplaceCommitments()
   const clearCommitments = useClearCommitments()
   const importCommitments = useImportCommitments()
+  const deleteCommitment = useDeleteCommitment()
+  const pending = usePendingActions()
 
   const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
@@ -54,13 +59,25 @@ export default function App() {
   // suggestion, not a fact.
   const [prefillDraft, setPrefillDraft] = useState(null)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const editingCommitment = commitments.find((c) => c.id === editingId) || null
 
   // Derived state over the cache — no refetch, no round-trip per keystroke.
   const visible = useMemo(() => filterAndSortCommitments(commitments, filters), [commitments, filters])
-  const active = useMemo(() => visible.filter((c) => c.status === 'active'), [visible])
-  const cancelled = useMemo(() => visible.filter((c) => c.status === 'cancelled'), [visible])
+  // Split by kind so each table's headers are exactly true of its rows.
+  // Within each, active before cancelled — a stable sort, so the user's
+  // chosen ordering survives inside each group.
+  const byKind = useMemo(() => {
+    const ordered = [...visible].sort(
+      (a, b) => Number(a.status === 'cancelled') - Number(b.status === 'cancelled'),
+    )
+    return {
+      subscriptions: ordered.filter((c) => c.type === 'subscription'),
+      bnpl: ordered.filter((c) => c.type === 'bnpl'),
+    }
+  }, [visible])
   const filtered = commitments.length > 0 && hasActiveFilters(filters)
 
   // Browser reminders — only fires while this tab is open (see
@@ -102,14 +119,15 @@ export default function App() {
 
   function handleClearAll() {
     if (commitments.length === 0) return
-    const confirmed = window.confirm(
-      'Clear all commitments? This removes everything in your account and cannot be undone.',
-    )
-    if (confirmed) clearCommitments.mutate()
+    setConfirmClear(true)
   }
 
+  // Each action is keyed to what was actually pressed, so its spinner lands
+  // on that row and a second tap can't fire it twice. Failures are shown by
+  // WriteFeedback from the mutation's own error state; the catch only stops
+  // them also surfacing as unhandled rejections.
   function handleToggleStatus(commitment) {
-    toggleStatus.mutate(commitment)
+    pending.run(`row:${commitment.id}`, () => toggleStatus.mutateAsync(commitment)).catch(() => {})
   }
 
   // "Keep it" also moves the commitment on to its next cycle (see
@@ -117,7 +135,9 @@ export default function App() {
   // stale. Both taps log the decision with the £ amount at that moment, so
   // the running totals stay meaningful even as costs change later.
   function handleRenewalAction(commitment, decision) {
-    recordDecision.mutate({ commitment, decision })
+    const key = `decision:${commitment.id}:${decision}`
+    if (pending.isPendingPrefix(`decision:${commitment.id}:`)) return
+    pending.run(key, () => recordDecision.mutateAsync({ commitment, decision })).catch(() => {})
   }
 
   function scrollToReview() {
@@ -175,7 +195,12 @@ export default function App() {
 
           <StatGrid commitments={commitments} onReviewClick={scrollToReview} />
 
-          <ReviewQueue id="review-queue" commitments={commitments} onAction={handleRenewalAction} />
+          <ReviewQueue
+            id="review-queue"
+            commitments={commitments}
+            onAction={handleRenewalAction}
+            pending={pending}
+          />
 
           <SuggestionsReview />
 
@@ -202,29 +227,41 @@ export default function App() {
               </div>
             )}
 
-            <div className="space-y-5">
-              <CommitmentTable
-                title="Active"
-                commitments={active}
-                onEdit={handleEdit}
-                onToggleStatus={handleToggleStatus}
-                emptyMessage={
-                  filtered
-                    ? 'Nothing matches those filters. Clear them to see everything again.'
-                    : 'No commitments yet — add your first subscription or BNPL plan to see it here.'
-                }
-              />
-
-              {cancelled.length > 0 && (
-                <CommitmentTable
-                  title="Cancelled"
-                  commitments={cancelled}
-                  onEdit={handleEdit}
-                  onToggleStatus={handleToggleStatus}
-                  emptyMessage="Nothing cancelled."
-                />
-              )}
-            </div>
+            {visible.length === 0 ? (
+              <div className="flex flex-col items-center rounded-2xl border border-dashed border-ink-muted/25 bg-white/60 px-6 py-14 text-center">
+                <p className="font-display text-[15px] font-bold text-ink-primary">
+                  {filtered ? 'Nothing matches those filters' : 'No commitments yet'}
+                </p>
+                <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-ink-secondary">
+                  {filtered
+                    ? 'Clear them to see everything again.'
+                    : 'Add your first subscription or BNPL plan and it will appear here.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {byKind.subscriptions.length > 0 && (
+                  <CommitmentTable
+                    kind="subscription"
+                    commitments={byKind.subscriptions}
+                    onEdit={handleEdit}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={setDeleteTarget}
+                    pending={pending}
+                  />
+                )}
+                {byKind.bnpl.length > 0 && (
+                  <CommitmentTable
+                    kind="bnpl"
+                    commitments={byKind.bnpl}
+                    onEdit={handleEdit}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={setDeleteTarget}
+                    pending={pending}
+                  />
+                )}
+              </div>
+            )}
           </section>
 
           <section>
@@ -257,11 +294,10 @@ export default function App() {
           { label: 'That change', mutation: toggleStatus },
           { label: 'That decision', mutation: recordDecision },
           { label: 'The example data', mutation: replaceCommitments },
-          { label: 'Clearing your data', mutation: clearCommitments },
         ]}
       />
 
-      <Modal open={showImport} labelledBy="csv-import-heading" onClose={() => setShowImport(false)}>
+      <Modal open={showImport} labelledBy="csv-import-heading" size="lg" onClose={() => setShowImport(false)}>
         <CsvImport
           isImporting={importCommitments.isPending}
           onClose={() => setShowImport(false)}
@@ -295,6 +331,47 @@ export default function App() {
           onCancel={closeForm}
         />
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget ? `Delete ${deleteTarget.name}?` : ''}
+        body={
+          <>
+            <p>
+              This permanently removes it, along with its decision history — including anything it added to your
+              "kept back by reconsidering" total.
+            </p>
+            <p className="mt-2">If you only want to stop tracking it, cancel it instead. That can be undone.</p>
+          </>
+        }
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        onConfirm={() =>
+          pending.run(`row:${deleteTarget.id}`, () => deleteCommitment.mutateAsync(deleteTarget))
+        }
+        onClose={() => {
+          setDeleteTarget(null)
+          deleteCommitment.reset()
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear all commitments?"
+        body={
+          <p>
+            This removes all {commitments.length} commitments in your account and their decision history. It
+            can't be undone.
+          </p>
+        }
+        confirmLabel="Clear everything"
+        busyLabel="Clearing…"
+        onConfirm={() => clearCommitments.mutateAsync()}
+        onClose={() => {
+          setConfirmClear(false)
+          clearCommitments.reset()
+        }}
+      />
     </AppShell>
   )
 }
