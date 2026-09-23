@@ -46,7 +46,7 @@ export default function CalendarMonth({ commitments, monthsAhead = 3 }) {
   const canGoForward = offset < monthsAhead
 
   return (
-    <section className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:p-6">
+    <section className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-display text-sm font-bold text-ink-primary">
@@ -115,14 +115,14 @@ function DayCell({ date, day, today }) {
       title={total > 0 ? `${formatGBP(total)} — ${names}` : undefined}
       className={`flex min-h-[3.25rem] flex-col rounded-lg border p-1.5 transition ${
         total > 0
-          ? 'border-brand-200 bg-brand-50/60'
+          ? 'border-accent/25 bg-accent-soft/60'
           : 'border-transparent bg-surface-sunken/50'
       } ${isPast ? 'opacity-55' : ''}`}
     >
       <span
         className={`text-[11px] ${
           isToday
-            ? 'inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 font-semibold text-white'
+            ? 'inline-flex h-4 w-4 items-center justify-center rounded-full bg-accent font-semibold text-accent-fg'
             : 'text-ink-muted'
         }`}
       >
@@ -132,7 +132,7 @@ function DayCell({ date, day, today }) {
         // Smaller on a phone so "£15.99" fits a narrow cell whole:
         // truncating to "£..." is useless where there is no hover to
         // recover the value from.
-        <span className="tabular mt-auto text-[10px] font-semibold leading-tight text-brand-700 sm:text-[11px]">
+        <span className="tabular mt-auto text-[10px] font-semibold leading-tight text-accent-text sm:text-[11px]">
           {formatGBP(total)}
         </span>
       )}

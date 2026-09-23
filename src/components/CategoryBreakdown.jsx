@@ -1,80 +1,107 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList, ResponsiveContainer } from 'recharts'
 import { categoryBreakdown, totalAnnualExposure, formatGBP } from '../lib/calculations.js'
 import { IconTag } from './Icon.jsx'
+import { useChartTheme, tooltipProps, ChartCard, ChartTooltip } from './charts/chartKit.jsx'
 
 // Fixed categorical order from the validated dataviz palette — never cycled,
-// never re-derived from data order.
-const CATEGORY_COLORS = {
-  Streaming: '#2a78d6', // slot 1 — blue
-  'Retail BNPL': '#eb6834', // slot 2 — orange
-  'Other subscriptions': '#1baf7a', // slot 3 — aqua
-  Other: '#898781', // muted ink — explicit "everything else" bucket, not a series colour
-}
-
-function CustomTooltip({ active, payload }) {
-  if (!active || !payload || !payload.length) return null
-  const { category, total } = payload[0].payload
-  return (
-    <div className="rounded-lg border border-ink-muted/15 bg-white px-3 py-2 text-sm shadow-card-hover">
-      <p className="font-medium text-ink-primary">{category}</p>
-      <p className="tabular text-ink-secondary">{formatGBP(total)} / year</p>
-    </div>
-  )
+// never re-derived from data order, and never the accent colour: changing
+// your accent must not repaint "Streaming".
+const CATEGORY_SERIES = {
+  Streaming: 'series1',
+  'Retail BNPL': 'series2',
+  'Other subscriptions': 'series3',
 }
 
 /**
- * Grouped annualised spend by category — nice-to-have per spec, kept to a
- * single measure (magnitude) so a simple bar chart is the right form; no
- * dual axes, no more than a handful of bars.
+ * Annualised spend by category. One measure (magnitude) across a handful of
+ * categories, so a sorted horizontal bar is the right form — no axes at
+ * all, since every bar carries its own value label.
+ *
+ * Each bar sits on a faint full-width track, so the length reads as a share
+ * of the largest category rather than floating on white.
  */
 export default function CategoryBreakdown({ commitments }) {
+  const t = useChartTheme()
   const data = categoryBreakdown(commitments)
   const total = totalAnnualExposure(commitments)
+  // "Other" is the explicit everything-else bucket — muted, not a series.
+  const colorFor = (category) => (CATEGORY_SERIES[category] ? t[CATEGORY_SERIES[category]] : t.muted)
 
   return (
-    <section className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <IconTag className="h-4 w-4 text-ink-muted" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-secondary">By category</h2>
-      </div>
-
+    <ChartCard
+      title="By category"
+      description="What each kind of commitment costs you over a year."
+      aside={
+        data.length > 0 && (
+          <div className="text-right">
+            <p className="tabular font-display text-xl font-bold tracking-tight text-ink-primary">{formatGBP(total)}</p>
+            <p className="text-xs text-ink-secondary">a year, all categories</p>
+          </div>
+        )
+      }
+    >
       {data.length === 0 ? (
-        <p className="py-4 text-sm text-ink-secondary">Add an active commitment to see the breakdown.</p>
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-surface-sunken text-ink-secondary">
+            <IconTag className="h-5 w-5" />
+          </div>
+          <p className="text-sm text-ink-secondary">Nothing active to break down. Reactivate or add a commitment to see it here.</p>
+        </div>
       ) : (
-        <>
-          <div style={{ width: '100%', height: Math.max(110, data.length * 52) }}>
-            <ResponsiveContainer>
-              <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 4 }} barCategoryGap={14}>
-                <XAxis type="number" hide domain={[0, (dataMax) => dataMax * 1.12]} />
-                <YAxis
-                  type="category"
-                  dataKey="category"
-                  width={132}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: '#52514e', fontSize: 13 }}
+        <div style={{ width: '100%', height: Math.max(120, data.length * 48) }}>
+          <ResponsiveContainer>
+            <BarChart data={data} layout="vertical" margin={{ top: 0, right: 72, bottom: 0, left: 0 }} barCategoryGap={12}>
+              <XAxis type="number" hide domain={[0, 'dataMax']} />
+              <YAxis
+                type="category"
+                dataKey="category"
+                width={156}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: t.secondary, fontSize: 13 }}
+              />
+              <Tooltip
+                {...tooltipProps(t)}
+                cursor={false}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const p = payload[0].payload
+                  const share = total > 0 ? Math.round((p.total / total) * 100) : 0
+                  return (
+                    <ChartTooltip
+                      title={p.category}
+                      rows={[
+                        { label: 'Per year', value: formatGBP(p.total), color: colorFor(p.category) },
+                        { label: 'Per month', value: formatGBP(p.total / 12) },
+                        { label: 'Share of total', value: `${share}%` },
+                      ]}
+                    />
+                  )
+                }}
+              />
+              <Bar
+                dataKey="total"
+                radius={6}
+                maxBarSize={22}
+                background={{ fill: t.sunken, radius: 6 }}
+                isAnimationActive={t.animate}
+                animationDuration={600}
+              >
+                {data.map((entry) => (
+                  <Cell key={entry.category} fill={colorFor(entry.category)} />
+                ))}
+                <LabelList
+                  dataKey="total"
+                  position="right"
+                  offset={10}
+                  formatter={(v) => formatGBP(v)}
+                  style={{ fill: t.primary, fontSize: 13, fontWeight: 600, fontFeatureSettings: '"tnum"' }}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(11,11,11,0.03)' }} />
-                <Bar dataKey="total" radius={[4, 4, 4, 4]} maxBarSize={24}>
-                  {data.map((entry) => (
-                    <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Other} />
-                  ))}
-                  <LabelList
-                    dataKey="total"
-                    position="right"
-                    formatter={(v) => formatGBP(v)}
-                    style={{ fill: '#0b0b0b', fontSize: 13, fontWeight: 600 }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-3 flex justify-between border-t border-ink-muted/10 pt-3 text-xs text-ink-muted">
-            <span>{data.length} active {data.length === 1 ? 'category' : 'categories'}</span>
-            <span className="tabular">Total {formatGBP(total)}</span>
-          </div>
-        </>
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       )}
-    </section>
+    </ChartCard>
   )
 }

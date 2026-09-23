@@ -3,7 +3,7 @@ import { COMMITMENT_TYPES, CATEGORIES, STATUSES } from '../../lib/constants.js'
 import { IconSearch, IconX } from '../Icon.jsx'
 
 const selectClass =
-  'rounded-lg border border-ink-muted/20 bg-white px-2.5 py-1.5 text-sm text-ink-primary shadow-sm transition focus-ring'
+  'rounded-lg border border-ink-muted/20 bg-surface px-2.5 py-1.5 text-sm text-ink-primary shadow-sm transition focus-ring'
 
 /**
  * Search, filters and sort in one row above the list. Everything here is
@@ -24,7 +24,7 @@ export default function CommitmentFilters({ filters, onChange, shown, total }) {
             onChange={(e) => set('search', e.target.value)}
             placeholder="Search by name"
             aria-label="Search commitments by name"
-            className="w-full rounded-lg border border-ink-muted/20 bg-white py-1.5 pl-8 pr-2.5 text-sm text-ink-primary shadow-sm transition focus-ring"
+            className="w-full rounded-lg border border-ink-muted/20 bg-surface py-1.5 pl-8 pr-2.5 text-sm text-ink-primary shadow-sm transition focus-ring"
           />
         </div>
 
@@ -58,7 +58,7 @@ export default function CommitmentFilters({ filters, onChange, shown, total }) {
           <button
             type="button"
             onClick={() => onChange({ ...DEFAULT_FILTERS, sort: filters.sort })}
-            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-brand-600 transition hover:bg-brand-50"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-accent-text transition hover:bg-accent-soft"
           >
             <IconX className="h-3 w-3" />
             Clear filters

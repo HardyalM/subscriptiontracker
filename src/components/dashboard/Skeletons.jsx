@@ -18,13 +18,13 @@ export function StatGridSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* The first card is the tall hero, so its skeleton is tall too. */}
-      <div className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:col-span-2">
+      <div className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card sm:col-span-2">
         <Bar className="h-3 w-40" />
         <Bar className="mt-4 h-10 w-52" />
         <Bar className="mt-3 h-3 w-60" />
       </div>
       {[0, 1].map((i) => (
-        <div key={i} className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card">
+        <div key={i} className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card">
           <Bar className="h-3 w-24" />
           <Bar className="mt-4 h-7 w-20" />
           <Bar className="mt-3 h-3 w-28" />
@@ -36,7 +36,7 @@ export function StatGridSkeleton() {
 
 export function TableSkeleton({ rows = 5 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-ink-muted/12 bg-white shadow-card">
+    <div className="overflow-hidden rounded-2xl border border-ink-muted/12 bg-surface shadow-card">
       <div className="border-b border-ink-muted/10 px-5 py-4">
         <Bar className="h-4 w-44" />
       </div>
@@ -59,7 +59,7 @@ export function TableSkeleton({ rows = 5 }) {
 
 export function ReviewQueueSkeleton() {
   return (
-    <div className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:p-6">
+    <div className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card sm:p-6">
       <Bar className="h-4 w-36" />
       <Bar className="mt-2 h-3 w-64" />
       <div className="mt-5 space-y-3">
@@ -73,6 +73,23 @@ export function ReviewQueueSkeleton() {
             <Bar className="h-9 w-24 rounded-lg" />
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+/** Placeholder for the bank-connection card while its status loads. */
+export function ConnectionCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card" aria-hidden="true">
+      <div className="flex items-start gap-3">
+        <Bar className="h-8 w-8 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1">
+          <Bar className="h-3.5 w-44" />
+          <Bar className="mt-3 h-3 w-full max-w-md" />
+          <Bar className="mt-2 h-3 w-2/3 max-w-sm" />
+          <Bar className="mt-4 h-9 w-36 rounded-lg" />
+        </div>
       </div>
     </div>
   )

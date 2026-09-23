@@ -257,6 +257,89 @@ export function IconTrash({ className }) {
   )
 }
 
+export function IconSun({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <circle cx="10" cy="10" r="3.4" />
+      <path d="M10 2.2v1.6M10 16.2v1.6M2.2 10h1.6M16.2 10h1.6M4.5 4.5l1.1 1.1M14.4 14.4l1.1 1.1M4.5 15.5l1.1-1.1M14.4 5.6l1.1-1.1" />
+    </svg>
+  )
+}
+
+export function IconMoon({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M16.6 12.3A6.8 6.8 0 017.7 3.4a6.8 6.8 0 108.9 8.9z" />
+    </svg>
+  )
+}
+
+export function IconMonitor({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <rect x="2.5" y="3.5" width="15" height="10" rx="1.8" />
+      <path d="M7 17h6M10 13.5V17" />
+    </svg>
+  )
+}
+
+export function IconUser({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <circle cx="10" cy="7" r="3.2" />
+      <path d="M3.8 16.8a6.2 6.2 0 0112.4 0" />
+    </svg>
+  )
+}
+
+export function IconPalette({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M10 2.8a7.2 7.2 0 100 14.4c1 0 1.5-.8 1.2-1.6-.4-1 .3-2 1.4-2h1.6a3 3 0 003-3A7.8 7.8 0 0010 2.8z" />
+      <circle cx="6.6" cy="9.2" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9.2" cy="6.2" r="1" fill="currentColor" stroke="none" />
+      <circle cx="13" cy="7.2" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IconBell({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M5.2 8.4a4.8 4.8 0 019.6 0c0 4.1 1.7 5.6 1.7 5.6H3.5s1.7-1.5 1.7-5.6z" />
+      <path d="M8.3 16.6a1.8 1.8 0 003.4 0" />
+    </svg>
+  )
+}
+
+export function IconWarning({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <path d="M8.6 3.4L2.5 14.2A1.6 1.6 0 003.9 16.6h12.2a1.6 1.6 0 001.4-2.4L11.4 3.4a1.6 1.6 0 00-2.8 0z" />
+      <path d="M10 7.6v3.6" />
+      <circle cx="10" cy="13.7" r=".9" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IconGear({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <circle cx="10" cy="10" r="2.6" />
+      <path d="M16.1 11.4l1.2.9-1.4 2.5-1.4-.5a5.8 5.8 0 01-1.6.9l-.3 1.5H9.6l-.3-1.5a5.8 5.8 0 01-1.6-.9l-1.4.5-1.4-2.5 1.2-.9a5.9 5.9 0 010-1.8l-1.2-.9 1.4-2.5 1.4.5a5.8 5.8 0 011.6-.9l.3-1.5h2.8l.3 1.5a5.8 5.8 0 011.6.9l1.4-.5 1.4 2.5-1.2.9a5.9 5.9 0 010 1.8z" />
+    </svg>
+  )
+}
+
+export function IconLayout({ className }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} {...common}>
+      <rect x="2.8" y="2.8" width="14.4" height="14.4" rx="2" />
+      <path d="M2.8 7.8h14.4M8.2 7.8v9.4" />
+    </svg>
+  )
+}
+
 export function IconX({ className }) {
   return (
     <svg viewBox="0 0 20 20" className={className} {...common}>

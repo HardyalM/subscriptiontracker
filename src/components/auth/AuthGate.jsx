@@ -20,7 +20,7 @@ export default function AuthGate({ children }) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface-page">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white shadow-card">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-accent-fg shadow-card">
           <IconLogo className="h-6 w-6" />
         </div>
         <span className="sr-only">Loading your account…</span>
@@ -36,7 +36,7 @@ export default function AuthGate({ children }) {
 function SetupNotice() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-page px-4">
-      <div className="w-full max-w-md rounded-2xl border border-ink-muted/12 bg-white p-6 shadow-card">
+      <div className="w-full max-w-md rounded-2xl border border-ink-muted/12 bg-surface p-6 shadow-card">
         <h1 className="font-display text-base font-bold text-ink-primary">Not connected to a project yet</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
           This build has no Supabase credentials, so there's nowhere to sign in to. Copy{' '}

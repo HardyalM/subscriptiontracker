@@ -11,6 +11,7 @@ import { IconPencil, IconBan, IconRestore, IconTrash, IconWallet } from '../Icon
 import StatusBadge from './StatusBadge.jsx'
 import RowMenu from './RowMenu.jsx'
 import ErrorBoundary from '../ErrorBoundary.jsx'
+import { useListMotion } from '../../lib/useListMotion.js'
 import CancellationGuide from '../cancellation-guides/CancellationGuide.jsx'
 
 const GRID = 'sm:grid sm:grid-cols-[minmax(0,1fr)_7.5rem_7rem_7.5rem_2.25rem] sm:items-center sm:gap-5'
@@ -42,9 +43,10 @@ export default function CommitmentTable({
   const valueHeading = isBnpl ? 'Left to pay' : 'Per year'
 
   const activeCount = commitments.filter((c) => c.status === 'active').length
+  const listRef = useListMotion()
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-ink-muted/[0.13] bg-white shadow-card">
+    <section className="overflow-hidden rounded-2xl border border-ink-muted/[0.13] bg-surface shadow-card">
       <div className="flex items-center justify-between gap-3 px-5 py-4">
         <div className="flex items-center gap-2.5">
           <span
@@ -81,7 +83,7 @@ export default function CommitmentTable({
             <span className="sr-only">Actions</span>
           </div>
 
-          <ul className="divide-y divide-ink-muted/[0.08] border-t border-ink-muted/10 sm:border-t-0">
+          <ul ref={listRef} className="divide-y divide-ink-muted/[0.08] border-t border-ink-muted/10 sm:border-t-0">
             {commitments.map((commitment) => (
               <Row
                 key={commitment.id}
@@ -143,7 +145,7 @@ function Row({ commitment, isBnpl, valueLabel, onEdit, onToggleStatus, onDelete,
 
   return (
     <li
-      className={`group px-5 py-4 transition-colors duration-150 ${GRID} ${
+      className={`group px-5 py-row-y transition-colors duration-150 ${GRID} ${
         isCancelled ? 'bg-surface-sunken/30' : 'hover:bg-surface-sunken/45'
       }`}
     >
@@ -191,7 +193,7 @@ function Row({ commitment, isBnpl, valueLabel, onEdit, onToggleStatus, onDelete,
               : days < 0
                 ? 'font-semibold text-status-critical-text'
                 : days <= RENEWAL_WINDOW_DAYS
-                  ? 'font-medium text-status-warning'
+                  ? 'font-medium text-status-warning-text'
                   : 'text-ink-secondary'
           }`}
         >

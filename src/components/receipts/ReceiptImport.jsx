@@ -40,7 +40,7 @@ export default function ReceiptImport({ onDraft, onClose }) {
   }
 
   return (
-    <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-ink-muted/12 bg-white shadow-raised">
+    <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-ink-muted/12 bg-surface shadow-raised">
       <div className="flex items-center justify-between gap-3 border-b border-ink-muted/10 px-5 py-4 sm:px-6">
         <h2 id="receipt-import-heading" className="text-sm font-semibold text-ink-primary">
           Read a receipt
@@ -70,7 +70,7 @@ export default function ReceiptImport({ onDraft, onClose }) {
               <button
                 type="button"
                 onClick={() => setStage('input')}
-                className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600"
+                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong"
               >
                 I understand — continue
               </button>
@@ -95,7 +95,7 @@ export default function ReceiptImport({ onDraft, onClose }) {
                   type="button"
                   onClick={() => setMode(value)}
                   className={`flex-1 rounded-md px-3 py-1.5 font-medium transition ${
-                    mode === value ? 'bg-white text-ink-primary shadow-card' : 'text-ink-secondary hover:text-ink-primary'
+                    mode === value ? 'bg-surface text-ink-primary shadow-card' : 'text-ink-secondary hover:text-ink-primary'
                   }`}
                 >
                   {label}
@@ -109,7 +109,7 @@ export default function ReceiptImport({ onDraft, onClose }) {
                   type="button"
                   disabled={parse.isPending}
                   onClick={() => inputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-6 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-6 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-accent-soft/60 hover:text-accent-text disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <IconUpload className="h-4 w-4" />
                   {parse.isPending ? 'Reading…' : 'Choose a photo'}
@@ -133,13 +133,13 @@ export default function ReceiptImport({ onDraft, onClose }) {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Paste the confirmation email here…"
-                  className="w-full rounded-lg border border-ink-muted/20 bg-white px-3 py-2.5 text-sm text-ink-primary shadow-sm transition focus-ring"
+                  className="w-full rounded-lg border border-ink-muted/20 bg-surface px-3 py-2.5 text-sm text-ink-primary shadow-sm transition focus-ring"
                 />
                 <button
                   type="button"
                   disabled={parse.isPending || text.trim().length < 20}
                   onClick={() => run({ pastedText: text })}
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <IconCheck className="h-4 w-4" />
                   {parse.isPending ? 'Reading…' : 'Read it'}
@@ -148,7 +148,7 @@ export default function ReceiptImport({ onDraft, onClose }) {
             )}
 
             {failure && (
-              <p role="alert" className="rounded-lg bg-status-critical/8 px-3 py-2 text-sm leading-relaxed text-status-critical">
+              <p role="alert" className="rounded-lg bg-status-critical/8 px-3 py-2 text-sm leading-relaxed text-status-critical-text">
                 {failure} Nothing was saved — you can try another photo, or just add it by hand.
               </p>
             )}

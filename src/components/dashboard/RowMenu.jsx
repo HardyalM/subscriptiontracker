@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IconMore, IconSpinner } from '../Icon.jsx'
+import { usePresence } from '../../lib/usePresence.js'
 
 const MENU_WIDTH = 208 // px — matches w-52
 
@@ -16,6 +17,9 @@ const MENU_WIDTH = 208 // px — matches w-52
  * focus to the trigger. Scrolling or resizing closes it rather than leaving
  * it floating detached from its row.
  *
+ * Closing plays a short exit (usePresence) rather than vanishing in one
+ * frame, and the menu scales from the corner nearest its trigger.
+ *
  * `busy` replaces the trigger's dots with a spinner and disables it, so an
  * action in flight is visible on the row it belongs to.
  */
@@ -24,6 +28,7 @@ export default function RowMenu({ label, items, busy = false }) {
   const [position, setPosition] = useState(null)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
+  const presence = usePresence(open, 160)
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return
@@ -33,13 +38,19 @@ export default function RowMenu({ label, items, busy = false }) {
     setPosition({
       top: below ? rect.bottom + 6 : rect.top - 6 - menuHeight,
       left: Math.max(8, rect.right - MENU_WIDTH),
+      origin: below ? 'top right' : 'bottom right',
     })
   }, [open, items.length])
 
+  // Focus the first item once the menu is actually on screen. It renders
+  // only after its position is measured, so this waits for that rather
+  // than firing on `open` alone, when there is nothing to focus yet.
+  useEffect(() => {
+    if (open && position) menuRef.current?.querySelector('[role="menuitem"]:not([disabled])')?.focus()
+  }, [open, position])
+
   useEffect(() => {
     if (!open) return undefined
-
-    menuRef.current?.querySelector('[role="menuitem"]:not([disabled])')?.focus()
 
     function close() {
       setOpen(false)
@@ -96,22 +107,25 @@ export default function RowMenu({ label, items, busy = false }) {
         aria-label={busy ? `${label} — working` : `Actions for ${label}`}
         className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:cursor-wait ${
           open
-            ? 'border-brand-500/40 bg-brand-50 text-brand-700'
-            : 'border-transparent text-ink-secondary hover:border-ink-muted/20 hover:bg-white hover:text-ink-primary hover:shadow-sm'
+            ? 'border-brand-500/40 bg-accent-soft text-accent-text'
+            : 'border-transparent text-ink-secondary hover:border-ink-muted/20 hover:bg-surface-raised hover:text-ink-primary hover:shadow-sm'
         }`}
       >
         {busy ? <IconSpinner className="h-4 w-4 animate-spin" /> : <IconMore className="h-4 w-4" />}
       </button>
 
-      {open &&
+      {presence.mounted &&
         position &&
         createPortal(
           <div
             ref={menuRef}
             role="menu"
             aria-label={`Actions for ${label}`}
-            style={{ top: position.top, left: position.left, width: MENU_WIDTH }}
-            className="fixed z-50 rounded-xl border border-ink-muted/12 bg-white p-1.5 shadow-elevated animate-menu-in"
+            onAnimationEnd={presence.onAnimationEnd}
+            style={{ top: position.top, left: position.left, width: MENU_WIDTH, transformOrigin: position.origin }}
+            className={`fixed z-50 rounded-xl border border-ink-muted/12 bg-surface p-1.5 shadow-elevated ${
+              presence.exiting ? 'pointer-events-none animate-menu-out' : 'animate-menu-in'
+            }`}
           >
             {items.map((item, i) =>
               item.separator ? (

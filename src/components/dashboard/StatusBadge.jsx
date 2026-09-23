@@ -11,9 +11,9 @@
  */
 
 const TONES = {
-  active: 'text-status-good bg-status-good/8 ring-status-good/20',
+  active: 'text-status-good-text bg-status-good/8 ring-status-good/20',
   cancelled: 'text-ink-secondary bg-ink-muted/10 ring-ink-muted/20',
-  review: 'text-status-warning bg-status-warning/10 ring-status-warning/25',
+  review: 'text-status-warning-text bg-status-warning/10 ring-status-warning/25',
   overdue: 'text-status-critical-text bg-status-critical/8 ring-status-critical/25',
   subscription: 'text-series-1 bg-series-1/8 ring-series-1/20',
   bnpl: 'text-series-2 bg-series-2/10 ring-series-2/25',

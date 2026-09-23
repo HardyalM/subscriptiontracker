@@ -38,7 +38,7 @@ export default class ErrorBoundary extends Component {
 
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface-page px-4">
-        <div className="w-full max-w-md rounded-2xl border border-ink-muted/12 bg-white p-6 shadow-card">
+        <div className="w-full max-w-md rounded-2xl border border-ink-muted/12 bg-surface p-6 shadow-card">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-status-critical/10 text-status-critical">
             <IconBan className="h-5 w-5" />
           </div>
@@ -53,7 +53,7 @@ export default class ErrorBoundary extends Component {
             <button
               type="button"
               onClick={() => this.setState({ error: null })}
-              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong"
             >
               Try again
             </button>

@@ -86,14 +86,14 @@ export default function CommitmentForm({ editingCommitment, onSave, onCancel, sa
   const isEdit = Boolean(editingCommitment?.id)
 
   const inputClass =
-    'h-11 w-full rounded-xl border border-ink-muted/25 bg-white px-3.5 text-[15px] text-ink-primary shadow-sm outline-none transition-all duration-150 placeholder:text-ink-secondary/60 hover:border-ink-muted/40 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/12'
+    'h-11 w-full rounded-xl border border-ink-muted/25 bg-surface px-3.5 text-[15px] text-ink-primary shadow-sm field transition-all duration-150 placeholder:text-ink-secondary/60 hover:border-ink-muted/40'
   const labelClass = 'mb-1.5 block text-[13px] font-semibold text-ink-secondary'
 
   return (
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="flex max-h-[88vh] flex-col overflow-hidden rounded-2xl border border-ink-muted/12 bg-white shadow-elevated"
+      className="flex max-h-[88vh] flex-col overflow-hidden rounded-2xl border border-ink-muted/12 bg-surface shadow-elevated"
     >
       <div className="flex items-start justify-between gap-4 border-b border-ink-muted/10 px-6 pb-4 pt-5">
         <div className="min-w-0">
@@ -128,7 +128,7 @@ export default function CommitmentForm({ editingCommitment, onSave, onCancel, sa
                 aria-checked={draft.type === t}
                 onClick={() => update('type', t)}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
-                  draft.type === t ? 'bg-white text-ink-primary shadow-card' : 'text-ink-secondary hover:text-ink-primary'
+                  draft.type === t ? 'bg-surface text-ink-primary shadow-card' : 'text-ink-secondary hover:text-ink-primary'
                 }`}
               >
                 {t === 'subscription' ? 'Subscription' : 'BNPL plan'}
@@ -303,14 +303,14 @@ export default function CommitmentForm({ editingCommitment, onSave, onCancel, sa
           type="button"
           onClick={onCancel}
           disabled={isSaving}
-          className="inline-flex h-10 items-center justify-center rounded-xl border border-ink-muted/20 bg-white px-4 text-sm font-semibold text-ink-primary shadow-sm transition-all duration-150 hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-10 items-center justify-center rounded-xl border border-ink-muted/20 bg-surface px-4 text-sm font-semibold text-ink-primary shadow-sm transition-all duration-150 hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isSaving}
-          className="inline-flex h-10 min-w-[9rem] items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-action transition-all duration-150 hover:bg-brand-700 hover:shadow-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 active:translate-y-px disabled:cursor-wait disabled:opacity-80"
+          className="inline-flex h-10 min-w-[9rem] items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-fg shadow-action transition-all duration-150 hover:bg-accent-strong hover:shadow-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 active:translate-y-px disabled:cursor-wait disabled:opacity-80"
         >
           {isSaving && <IconSpinner className="h-4 w-4 animate-spin" />}
           {isSaving ? 'Saving…' : isEdit ? 'Save changes' : 'Add commitment'}

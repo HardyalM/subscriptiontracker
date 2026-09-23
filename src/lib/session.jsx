@@ -130,14 +130,34 @@ export function SessionProvider({ children }) {
     return { error: null, needsConfirmation: !data.session }
   }, [])
 
+  /**
+   * Renames the current workspace. Lives here rather than in a data hook
+   * because the workspace is this context's concern — every other consumer
+   * reads its name from here, so the rename has to update it here too.
+   * RLS already allows members to rename their own workspace.
+   */
+  const renameWorkspace = useCallback(
+    async (name) => {
+      const trimmed = String(name ?? '').trim()
+      if (!trimmed) return { error: new Error('Give your workspace a name.') }
+      if (!workspace?.id) return { error: new Error('No workspace loaded yet.') }
+
+      const { error } = await supabase.from('workspaces').update({ name: trimmed }).eq('id', workspace.id)
+      if (error) return { error }
+      setWorkspace((current) => (current ? { ...current, name: trimmed } : current))
+      return { error: null }
+    },
+    [workspace?.id],
+  )
+
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
     return { error: error ?? null }
   }, [])
 
   const value = useMemo(
-    () => ({ user, session, workspace, loading, workspaceError, signIn, signUp, signOut }),
-    [user, session, workspace, loading, workspaceError, signIn, signUp, signOut],
+    () => ({ user, session, workspace, loading, workspaceError, signIn, signUp, signOut, renameWorkspace }),
+    [user, session, workspace, loading, workspaceError, signIn, signUp, signOut, renameWorkspace],
   )
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

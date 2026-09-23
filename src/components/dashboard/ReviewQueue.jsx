@@ -8,6 +8,7 @@ import {
 } from '../../lib/calculations.js'
 import { IconCalendarClock, IconCheck, IconRewind, IconSpinner } from '../Icon.jsx'
 import StatusBadge from './StatusBadge.jsx'
+import { useListMotion } from '../../lib/useListMotion.js'
 
 /**
  * The decision engine.
@@ -31,12 +32,13 @@ export default function ReviewQueue({ commitments, onAction, pending, id }) {
   const { kept, reconsidered } = decisionTally(commitments)
   const saved = reconsideredSavingsTotal(commitments)
   const decisionsMade = kept + reconsidered
+  const listRef = useListMotion()
 
   if (items.length === 0) {
     return (
       <section
         id={id}
-        className="rounded-2xl border border-ink-muted/12 bg-white p-6 shadow-card"
+        className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card animate-fade-in"
       >
         <div className="flex items-start gap-3.5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-status-good/10 text-status-good ring-1 ring-inset ring-status-good/20">
@@ -59,7 +61,7 @@ export default function ReviewQueue({ commitments, onAction, pending, id }) {
   return (
     <section
       id={id}
-      className="overflow-hidden rounded-2xl border border-status-warning/25 bg-white shadow-elevated"
+      className="overflow-hidden rounded-2xl border border-status-warning/25 bg-surface shadow-elevated"
     >
       <div className="border-b border-status-warning/20 bg-status-warning/[0.06] px-5 py-4 sm:px-6">
         <div className="flex items-center gap-2.5">
@@ -73,13 +75,13 @@ export default function ReviewQueue({ commitments, onAction, pending, id }) {
         </p>
       </div>
 
-      <ul className="divide-y divide-ink-muted/8">
+      <ul ref={listRef} className="divide-y divide-ink-muted/8">
         {items.map((commitment) => {
           const days = daysUntil(commitment.nextPaymentDate)
           return (
             <li
               key={commitment.id}
-              className="flex flex-col gap-3.5 px-5 py-4 transition-colors duration-150 hover:bg-surface-sunken/40 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
+              className="flex flex-col gap-3.5 px-5 py-row-y transition-colors duration-150 hover:bg-surface-sunken/40 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -143,7 +145,7 @@ function Tally({ kept, reconsidered, saved, inline = false }) {
       </span>
       {saved > 0 && (
         <span className="text-ink-secondary">
-          <span className="tabular font-bold text-status-good">{formatGBP(saved)}</span> kept back by reconsidering
+          <span className="tabular font-bold text-status-good-text">{formatGBP(saved)}</span> kept back by reconsidering
         </span>
       )}
     </div>
@@ -164,8 +166,8 @@ function Tally({ kept, reconsidered, saved, inline = false }) {
 function DecisionButton({ label, icon, tone, busy = false, locked = false, onClick }) {
   const hover =
     tone === 'good'
-      ? 'hover:border-status-good/40 hover:bg-status-good/[0.06] hover:text-status-good focus-visible:ring-status-good/40'
-      : 'hover:border-brand-500/40 hover:bg-brand-50 hover:text-brand-700 focus-visible:ring-brand-500/40'
+      ? 'hover:border-status-good/40 hover:bg-status-good/[0.06] hover:text-status-good-text focus-visible:ring-status-good/40'
+      : 'hover:border-brand-500/40 hover:bg-accent-soft hover:text-accent-text focus-visible:ring-brand-500/40'
 
   return (
     <button
@@ -173,7 +175,7 @@ function DecisionButton({ label, icon, tone, busy = false, locked = false, onCli
       onClick={onClick}
       disabled={locked}
       aria-busy={busy}
-      className={`inline-flex h-10 min-w-[7.25rem] items-center justify-center gap-2 rounded-xl border border-ink-muted/20 bg-white px-4 text-sm font-semibold text-ink-primary shadow-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-px disabled:cursor-wait ${
+      className={`inline-flex h-10 min-w-[7.25rem] items-center justify-center gap-2 rounded-xl border border-ink-muted/20 bg-surface px-4 text-sm font-semibold text-ink-primary shadow-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-px disabled:cursor-wait ${
         locked && !busy ? 'opacity-50' : ''
       } ${locked ? '' : hover}`}
     >

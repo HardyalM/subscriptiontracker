@@ -16,13 +16,13 @@ import { IconLogo } from '../Icon.jsx'
 export default function StatCard({ label, value, detail, icon, tone = 'neutral', footer }) {
   const iconTone = {
     neutral: 'bg-surface-sunken text-ink-secondary ring-ink-muted/15',
-    brand: 'bg-brand-50 text-brand-600 ring-brand-500/15',
+    brand: 'bg-accent-soft text-accent-text ring-brand-500/15',
     warning: 'bg-status-warning/10 text-status-warning ring-status-warning/20',
     bnpl: 'bg-series-2/10 text-series-2 ring-series-2/20',
   }[tone]
 
   return (
-    <div className="flex flex-col rounded-2xl border border-ink-muted/[0.13] bg-white p-5 shadow-card transition-all duration-200 hover:-translate-y-px hover:border-ink-muted/20 hover:shadow-card-hover">
+    <div className="flex flex-col rounded-2xl border border-ink-muted/[0.13] bg-surface p-card-pad shadow-card transition-all duration-200 hover:-translate-y-px hover:border-ink-muted/20 hover:shadow-card-hover">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-secondary">{label}</p>
         {icon && (
@@ -33,7 +33,7 @@ export default function StatCard({ label, value, detail, icon, tone = 'neutral',
       </div>
       <p
         className={`tabular mt-2 font-display text-[1.85rem] font-bold leading-none tracking-tight ${
-          tone === 'warning' ? 'text-status-warning' : 'text-ink-primary'
+          tone === 'warning' ? 'text-status-warning-text' : 'text-ink-primary'
         }`}
       >
         {value}
@@ -54,7 +54,7 @@ export function HeroStatCard({ label, value, detail, breakdown }) {
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(36rem 26rem at 10% 0%, rgba(122,182,240,0.24), transparent 62%), radial-gradient(28rem 22rem at 100% 110%, rgba(42,120,214,0.32), transparent 58%)',
+            'radial-gradient(36rem 26rem at 10% 0%, rgb(var(--brand-300) / 0.24), transparent 62%), radial-gradient(28rem 22rem at 100% 110%, rgb(var(--brand-500) / 0.32), transparent 58%)',
         }}
       />
       <IconLogo aria-hidden="true" className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 text-white/[0.06]" />

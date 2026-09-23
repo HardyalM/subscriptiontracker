@@ -133,7 +133,7 @@ export default function StatGrid({ commitments, onReviewClick }) {
             <button
               type="button"
               onClick={onReviewClick}
-              className="rounded text-sm font-semibold text-brand-600 underline-offset-4 transition hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2"
+              className="rounded text-sm font-semibold text-accent-text underline-offset-4 transition hover:text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2"
             >
               Review them →
             </button>

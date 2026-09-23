@@ -66,6 +66,7 @@ does not allow.
 | `plaid-webhook` | Plaid credentials, encryption key | Plaid's own ES256 signature |
 | `parse-receipt` | Anthropic API key | caller's JWT |
 | `send-alerts` | Resend key | service-role JWT from cron |
+| `delete-account` | service-role key (to delete the auth user) | caller's JWT, plus a typed confirmation |
 
 `plaid-webhook` cannot sit behind Supabase's JWT check, because Plaid has no
 Supabase token to send. Rather than leave an open endpoint that triggers API
@@ -103,6 +104,12 @@ asks first, every time:
   gated behind an explicit consent screen naming exactly what is sent, and
   the function refuses to run without a consent flag, so calling it directly
   cannot skip the step.
+
+**Deleting your account** (Settings → Danger Zone, behind a typed
+confirmation) removes it for real rather than hiding it: your uploaded
+receipts, then your workspace — which cascades to every commitment, decision,
+bank connection and suggestion — then the login itself. If someone else
+shares the workspace, only your membership goes and their data stays.
 
 Nothing is ever written on your behalf from an automated source. Bank sync
 produces *suggestions* you accept or dismiss; receipt parsing produces a
@@ -219,7 +226,7 @@ supabase functions deploy
 Stated plainly rather than left to be discovered:
 
 - **Parts of the UI have not been exercised end to end.** Logic is covered
-  by 257 unit tests, CI is green, and the dashboard has been rendered
+  by 295 unit tests, CI is green, and the dashboard has been rendered
   against real rows — the headline figure it computes matches an
   independent SQL calculation to the penny, and the batch-insert path has
   written to live Postgres. Still unexercised by a human: single

@@ -78,7 +78,7 @@ export default function AuthScreen() {
               setSentTo('')
               switchMode('sign-in')
             }}
-            className="mt-6 text-sm font-semibold text-brand-600 underline-offset-4 transition hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 rounded"
+            className="mt-6 text-sm font-semibold text-accent-text underline-offset-4 transition hover:text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 rounded"
           >
             Back to sign in
           </button>
@@ -115,7 +115,7 @@ export default function AuthScreen() {
             aria-pressed={mode === value}
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
               mode === value
-                ? 'bg-white text-ink-primary shadow-card'
+                ? 'bg-surface text-ink-primary shadow-card'
                 : 'text-ink-secondary hover:text-ink-primary'
             }`}
           >
@@ -188,7 +188,7 @@ export default function AuthScreen() {
         <button
           type="submit"
           disabled={busy}
-          className="group relative flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[15px] font-semibold text-white shadow-action transition-all duration-200 hover:bg-brand-700 hover:shadow-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70 disabled:shadow-action"
+          className="group relative flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-[15px] font-semibold text-accent-fg shadow-action transition-all duration-200 hover:bg-accent-strong hover:shadow-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70 disabled:shadow-action"
         >
           {busy && <IconSpinner className="h-4 w-4 animate-spin" />}
           {busy ? 'Signing you in…' : isSignUp ? 'Create account' : 'Sign in'}
@@ -207,7 +207,7 @@ export default function AuthScreen() {
 }
 
 const inputClass =
-  'h-12 w-full rounded-xl border border-ink-muted/25 bg-white px-3.5 text-[15px] text-ink-primary shadow-sm outline-none transition-all duration-200 placeholder:text-ink-muted/60 hover:border-ink-muted/40 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/12'
+  'h-12 w-full rounded-xl border border-ink-muted/25 bg-surface px-3.5 text-[15px] text-ink-primary shadow-sm field transition-all duration-200 placeholder:text-ink-muted/60 hover:border-ink-muted/40'
 
 function Field({ label, htmlFor, children }) {
   return (
@@ -230,7 +230,7 @@ function Shell({ children }) {
           {/* The mark repeats here for small screens, where the brand panel
               is not rendered at all. */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white shadow-action">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-accent-fg shadow-action">
               <IconLogo className="h-5 w-5" />
             </div>
             <span className="font-display text-[15px] font-bold tracking-tight text-ink-primary">
@@ -260,7 +260,7 @@ function BrandPanel() {
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(60rem 40rem at 15% 0%, rgba(122,182,240,0.22), transparent 60%), radial-gradient(40rem 30rem at 90% 100%, rgba(42,120,214,0.28), transparent 55%)',
+            'radial-gradient(60rem 40rem at 15% 0%, rgb(var(--brand-300) / 0.22), transparent 60%), radial-gradient(40rem 30rem at 90% 100%, rgb(var(--brand-500) / 0.28), transparent 55%)',
         }}
       />
       <div

@@ -41,9 +41,9 @@ export default function ImportLocalData() {
   }
 
   return (
-    <div className="rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3.5">
+    <div className="rounded-xl border border-accent/25 bg-accent-soft/60 px-4 py-3.5">
       <div className="flex items-start gap-3">
-        <IconDownload className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+        <IconDownload className="mt-0.5 h-4 w-4 shrink-0 text-accent-text" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-ink-primary">
             {local.length} {local.length === 1 ? 'commitment' : 'commitments'} saved in this browser
@@ -53,7 +53,7 @@ export default function ImportLocalData() {
           </p>
 
           {importer.isError && (
-            <p role="alert" className="mt-2 text-sm text-status-critical">
+            <p role="alert" className="mt-2 text-sm text-status-critical-text">
               That didn't work — nothing was moved, and your local copy is untouched. Try again?
             </p>
           )}
@@ -63,14 +63,14 @@ export default function ImportLocalData() {
               type="button"
               onClick={handleImport}
               disabled={importer.isPending}
-              className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
             >
               {importer.isPending ? 'Moving…' : 'Move them across'}
             </button>
             <button
               type="button"
               onClick={() => setDismissed(true)}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-ink-secondary transition hover:bg-white/70"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-ink-secondary transition hover:bg-surface/70"
             >
               Not now
             </button>
@@ -80,7 +80,7 @@ export default function ImportLocalData() {
           type="button"
           onClick={() => setDismissed(true)}
           aria-label="Dismiss"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-muted transition hover:bg-white/70 hover:text-ink-primary"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-muted transition hover:bg-surface/70 hover:text-ink-primary"
         >
           <IconX className="h-3.5 w-3.5" />
         </button>

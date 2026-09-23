@@ -1,17 +1,36 @@
 import { useMemo } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cumulativeOutflow, formatGBP } from '../../lib/calculations.js'
+import {
+  useChartTheme,
+  gridProps,
+  axisProps,
+  cursorProps,
+  activeDot,
+  tooltipProps,
+  formatGBPCompact,
+  ChartCard,
+  ChartTooltip,
+  FadeGradient,
+  dayMonth,
+  dayMonthYear,
+} from '../charts/chartKit.jsx'
 
 /**
  * Running total of what leaves the account between now and the horizon.
  *
- * A step line rather than a smooth curve, because the underlying quantity
- * genuinely steps: nothing happens between payment dates, and drawing a
- * gentle slope across those gaps would imply money trickling out daily.
+ * Deliberately a step, not a smooth curve, even though the trend chart
+ * below is smooth. This quantity genuinely steps: nothing happens between
+ * payment dates, and a gentle curve across those gaps would imply money
+ * trickling out every day. The styling — accent line, fading fill, faint
+ * grid, the shared tooltip — matches the other charts; only the shape is
+ * true to the data.
  *
- * One series, so no legend — the heading names it.
+ * One series, in the accent colour, so no legend: the headline figure on
+ * the right names what the line adds up to.
  */
 export default function CashFlowForecast({ commitments, monthsAhead = 3 }) {
+  const t = useChartTheme()
   const data = useMemo(() => cumulativeOutflow(commitments, monthsAhead), [commitments, monthsAhead])
 
   if (data.length === 0) return null
@@ -19,73 +38,57 @@ export default function CashFlowForecast({ commitments, monthsAhead = 3 }) {
   const total = data[data.length - 1].cumulative
 
   return (
-    <section className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:p-6">
-      <div>
-        <h2 className="font-display text-sm font-bold text-ink-primary">What you'll need, and when</h2>
-        <p className="mt-0.5 text-xs text-ink-secondary">
-          Running total of payments due over the next {monthsAhead} months — {formatGBP(total)} in all.
-        </p>
-      </div>
-
-      <div className="mt-4 h-44 w-full">
+    <ChartCard
+      title="What you'll need, and when"
+      description={`Running total of payments due over the next ${monthsAhead} months.`}
+      aside={
+        <div className="text-right">
+          <p className="tabular font-display text-xl font-bold tracking-tight text-ink-primary">{formatGBP(total)}</p>
+          <p className="text-xs text-ink-secondary">
+            across {data.length} payment {data.length === 1 ? 'date' : 'dates'}
+          </p>
+        </div>
+      }
+    >
+      <div className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke="#898781" strokeOpacity={0.14} />
-            <XAxis
-              dataKey="date"
-              tickFormatter={shortDate}
-              tick={{ fontSize: 11, fill: '#898781' }}
-              axisLine={false}
-              tickLine={false}
-              interval="preserveStartEnd"
-              minTickGap={28}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: '#898781' }}
-              axisLine={false}
-              tickLine={false}
-              width={56}
-              tickFormatter={(v) => formatGBP(v)}
-            />
+          <AreaChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+            <defs>
+              <FadeGradient id="forecast-fill" color={t.accent} from={0.24} />
+            </defs>
+            <CartesianGrid {...gridProps(t)} />
+            <XAxis dataKey="date" tickFormatter={dayMonth} interval="preserveStartEnd" minTickGap={32} {...axisProps(t)} />
+            <YAxis width={48} tickCount={4} tickFormatter={formatGBPCompact} {...axisProps(t)} />
             <Tooltip
-              cursor={{ stroke: '#898781', strokeOpacity: 0.35, strokeWidth: 1 }}
-              content={<ForecastTooltip />}
+              {...tooltipProps(t)}
+              cursor={cursorProps(t)}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                const p = payload[0].payload
+                return (
+                  <ChartTooltip
+                    title={dayMonthYear(p.date)}
+                    rows={[{ label: 'Due that day', value: formatGBP(p.outflow), color: t.accent }]}
+                    total={{ label: 'Running total', value: formatGBP(p.cumulative) }}
+                  />
+                )
+              }}
             />
-            <Line
+            <Area
               type="stepAfter"
               dataKey="cumulative"
-              stroke="#2a78d6"
+              stroke={t.accent}
               strokeWidth={2}
+              strokeLinejoin="round"
+              fill="url(#forecast-fill)"
               dot={false}
-              activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
+              activeDot={activeDot(t, t.accent)}
+              isAnimationActive={t.animate}
+              animationDuration={700}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
-    </section>
+    </ChartCard>
   )
-}
-
-function ForecastTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const point = payload[0].payload
-  return (
-    <div className="rounded-lg border border-ink-muted/15 bg-white px-3 py-2 shadow-raised">
-      <p className="text-xs font-medium text-ink-secondary">{longDate(point.date)}</p>
-      <p className="tabular text-sm font-semibold text-ink-primary">{formatGBP(point.cumulative)} by this date</p>
-      <p className="tabular text-xs text-ink-secondary">{formatGBP(point.outflow)} due on the day</p>
-    </div>
-  )
-}
-
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function shortDate(date) {
-  const [, m, d] = String(date).split('-')
-  return `${Number(d)} ${MONTHS_SHORT[Number(m) - 1]}`
-}
-
-function longDate(date) {
-  const [y, m, d] = String(date).split('-')
-  return `${Number(d)} ${MONTHS_SHORT[Number(m) - 1]} ${y}`
 }

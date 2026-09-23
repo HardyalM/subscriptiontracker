@@ -1,94 +1,136 @@
 import { useMemo } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { exposureTrend, formatGBP } from '../../lib/calculations.js'
+import {
+  useChartTheme,
+  gridProps,
+  axisProps,
+  cursorProps,
+  activeDot,
+  tooltipProps,
+  formatGBPCompact,
+  ChartCard,
+  ChartTooltip,
+  FadeGradient,
+  LegendItem,
+  monthShort,
+  monthLong,
+} from '../charts/chartKit.jsx'
 
 /**
- * Total annualised exposure over the last 12 months.
+ * Annualised exposure over the last 12 months, split into subscriptions and
+ * BNPL and stacked, so the top edge is the total and each band shows how
+ * much of it is which.
  *
- * One series, so there is no legend — the heading names it. Change over time
- * is an area chart; the fill carries the magnitude and the 2px stroke keeps
- * the line readable where months are flat.
+ * Smooth (monotone) curves here, unlike the cash-flow chart: this is a
+ * month-end reading of a level, and monotone interpolation never overshoots
+ * between points, so the curve can't invent a peak or a dip that isn't in
+ * the data.
+ *
+ * The legend carries this month's figure for each band, so it doubles as
+ * a direct label and the chart reads without hovering.
  */
 export default function ExposureTrend({ commitments }) {
-  const data = useMemo(() => exposureTrend(commitments, 12), [commitments])
+  const t = useChartTheme()
 
-  const hasMovement = data.some((p) => p.exposure > 0)
-  if (!hasMovement) return null
+  const data = useMemo(() => {
+    const subs = exposureTrend(commitments.filter((c) => c.type === 'subscription'), 12)
+    const bnpl = exposureTrend(commitments.filter((c) => c.type === 'bnpl'), 12)
+    return subs.map((point, i) => ({
+      month: point.month,
+      subscriptions: point.exposure,
+      bnpl: bnpl[i]?.exposure ?? 0,
+      total: point.exposure + (bnpl[i]?.exposure ?? 0),
+    }))
+  }, [commitments])
+
+  if (!data.some((p) => p.total > 0)) return null
+
+  const latest = data[data.length - 1]
+  const first = data.find((p) => p.total > 0) ?? data[0]
+  const change = latest.total - first.total
 
   return (
-    <section className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:p-6">
-      <div className="mb-1">
-        <h2 className="font-display text-sm font-bold text-ink-primary">Annualised exposure over time</h2>
-        <p className="mt-0.5 text-xs text-ink-secondary">
-          What your active commitments added up to at the end of each month.
-        </p>
-      </div>
-
-      <div className="mt-4 h-48 w-full">
+    <ChartCard
+      title="Annualised exposure over time"
+      description="What your active commitments added up to at the end of each month."
+      aside={
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+          <LegendItem color={t.series1} label="Subscriptions" value={formatGBP(latest.subscriptions)} />
+          <LegendItem color={t.series2} label="BNPL" value={formatGBP(latest.bnpl)} />
+        </div>
+      }
+      footer={
+        <div className="flex flex-wrap justify-between gap-2 text-xs text-ink-secondary">
+          <span>
+            Now <span className="tabular font-semibold text-ink-primary">{formatGBP(latest.total)}</span> a year
+          </span>
+          {first !== latest && (
+            <span className="tabular">
+              {change === 0 ? 'No change' : `${change > 0 ? 'Up' : 'Down'} ${formatGBP(Math.abs(change))}`} since{' '}
+              {monthLong(first.month)}
+            </span>
+          )}
+        </div>
+      }
+    >
+      <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="exposureFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2a78d6" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="#2a78d6" stopOpacity={0.02} />
-              </linearGradient>
+              <FadeGradient id="trend-subs" color={t.series1} />
+              <FadeGradient id="trend-bnpl" color={t.series2} />
             </defs>
-
-            {/* Recessive grid: horizontal only, so it reads as a reference
-                rather than competing with the line. */}
-            <CartesianGrid vertical={false} stroke="#898781" strokeOpacity={0.14} />
-            <XAxis
-              dataKey="month"
-              tickFormatter={shortMonth}
-              tick={{ fontSize: 11, fill: '#898781' }}
-              axisLine={false}
-              tickLine={false}
-              interval="preserveStartEnd"
-              minTickGap={16}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: '#898781' }}
-              axisLine={false}
-              tickLine={false}
-              width={56}
-              tickFormatter={(v) => formatGBP(v)}
-            />
+            <CartesianGrid {...gridProps(t)} />
+            <XAxis dataKey="month" tickFormatter={monthShort} interval="preserveStartEnd" minTickGap={24} {...axisProps(t)} />
+            <YAxis width={48} tickCount={4} tickFormatter={formatGBPCompact} {...axisProps(t)} />
             <Tooltip
-              cursor={{ stroke: '#898781', strokeOpacity: 0.35, strokeWidth: 1 }}
-              content={<TrendTooltip />}
+              {...tooltipProps(t)}
+              cursor={cursorProps(t)}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                const p = payload[0].payload
+                return (
+                  <ChartTooltip
+                    title={monthLong(p.month)}
+                    rows={[
+                      { label: 'Subscriptions', value: formatGBP(p.subscriptions), color: t.series1 },
+                      { label: 'BNPL', value: formatGBP(p.bnpl), color: t.series2 },
+                    ]}
+                    total={{ label: 'Per year', value: formatGBP(p.total) }}
+                  />
+                )
+              }}
+            />
+            {/* BNPL at the bottom of the stack. Months with no BNPL then
+                draw its line flat along zero, which is true; stacked on top
+                instead, a zero band's line would lie exactly over the
+                subscriptions line and paint it the wrong colour. */}
+            <Area
+              type="monotone"
+              dataKey="bnpl"
+              stackId="exposure"
+              stroke={t.series2}
+              strokeWidth={2}
+              fill="url(#trend-bnpl)"
+              activeDot={activeDot(t, t.series2)}
+              isAnimationActive={t.animate}
+              animationDuration={700}
             />
             <Area
               type="monotone"
-              dataKey="exposure"
-              stroke="#2a78d6"
+              dataKey="subscriptions"
+              stackId="exposure"
+              stroke={t.series1}
               strokeWidth={2}
-              fill="url(#exposureFill)"
-              activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
+              fill="url(#trend-subs)"
+              activeDot={activeDot(t, t.series1)}
+              isAnimationActive={t.animate}
+              animationDuration={700}
             />
           </AreaChart>
         </ResponsiveContainer>
       </div>
-    </section>
+    </ChartCard>
   )
-}
-
-function TrendTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-lg border border-ink-muted/15 bg-white px-3 py-2 shadow-raised">
-      <p className="text-xs font-medium text-ink-secondary">{longMonth(label)}</p>
-      <p className="tabular text-sm font-semibold text-ink-primary">{formatGBP(payload[0].value)}</p>
-    </div>
-  )
-}
-
-function shortMonth(month) {
-  const [y, m] = String(month).split('-')
-  return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m) - 1]} ${y.slice(2)}`
-}
-
-function longMonth(month) {
-  const [y, m] = String(month).split('-')
-  const names = ['January','February','March','April','May','June','July','August','September','October','November','December']
-  return `${names[Number(m) - 1]} ${y}`
 }

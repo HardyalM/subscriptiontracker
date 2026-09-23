@@ -17,7 +17,7 @@ export default function SuggestionsReview() {
   if (isPending || suggestions.length === 0) return null
 
   return (
-    <section className="rounded-2xl border border-brand-200 bg-brand-50/50 p-5 sm:p-6">
+    <section className="rounded-2xl border border-accent/25 bg-accent-soft/50 p-5 sm:p-6">
       <h2 className="font-display text-sm font-bold text-ink-primary">
         {suggestions.length === 1 ? 'One payment worth a look' : `${suggestions.length} payments worth a look`}
       </h2>
@@ -29,7 +29,7 @@ export default function SuggestionsReview() {
         {suggestions.map((suggestion) => (
           <li
             key={suggestion.id}
-            className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-muted/12 bg-white px-3.5 py-3 shadow-card"
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-muted/12 bg-surface px-3.5 py-3 shadow-card"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-ink-primary">{suggestion.name}</p>
@@ -46,7 +46,7 @@ export default function SuggestionsReview() {
                 type="button"
                 disabled={resolve.isPending}
                 onClick={() => resolve.mutate({ suggestion, decision: 'accepted' })}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <IconCheck className="h-3.5 w-3.5" />
                 Add it
@@ -66,7 +66,7 @@ export default function SuggestionsReview() {
       </ul>
 
       {resolve.isError && (
-        <p role="alert" className="mt-2.5 rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical">
+        <p role="alert" className="mt-2.5 rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical-text">
           That didn't save. Nothing was changed — try again?
         </p>
       )}

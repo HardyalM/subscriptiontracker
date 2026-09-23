@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { useBankConnections, useCreateLinkToken, useExchangePublicToken } from '../../lib/bankSyncQueries.js'
 import { IconWallet, IconCheck } from '../Icon.jsx'
+import { ConnectionCardSkeleton } from '../dashboard/Skeletons.jsx'
 
 /**
  * Connecting a bank. Sandbox only — every surface here says so, because a
@@ -60,10 +61,10 @@ export default function BankSyncCard() {
   // Plaid Link opens as soon as the token arrives.
   if (linkToken && ready && stage === 'linking') open()
 
-  if (isPending) return null
+  if (isPending) return <ConnectionCardSkeleton />
 
   return (
-    <section className="rounded-2xl border border-ink-muted/12 bg-white p-5 shadow-card sm:p-6">
+    <section className="rounded-2xl border border-ink-muted/12 bg-surface p-card-pad shadow-card">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-ink-secondary">
           <IconWallet className="h-4 w-4" />
@@ -89,7 +90,7 @@ export default function BankSyncCard() {
               <button
                 type="button"
                 onClick={() => setStage('consent')}
-                className="mt-3 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600"
+                className="mt-3 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong"
               >
                 Connect a bank
               </button>
@@ -97,7 +98,7 @@ export default function BankSyncCard() {
           )}
 
           {error && (
-            <p role="alert" className="mt-3 rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical">
+            <p role="alert" className="mt-3 rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical-text">
               {error}
             </p>
           )}
@@ -124,7 +125,7 @@ function ConsentStep({ onAgree, onCancel, isBusy }) {
           type="button"
           onClick={onAgree}
           disabled={isBusy}
-          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBusy ? 'Opening…' : 'I understand — continue'}
         </button>
@@ -147,7 +148,7 @@ function ConnectedList({ connections }) {
         <div key={connection.id} className="flex flex-wrap items-center gap-2 text-sm">
           <IconCheck className="h-4 w-4 shrink-0 text-status-good" />
           <span className="font-medium text-ink-primary">{connection.institution_name ?? 'Connected account'}</span>
-          <span className="rounded-md bg-status-warning/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-status-warning">
+          <span className="rounded-md bg-status-warning/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-status-warning-text">
             {connection.plaid_env} — demo data
           </span>
           <span className="text-xs text-ink-muted">
@@ -164,7 +165,7 @@ function ConnectedList({ connections }) {
 function SandboxNotice() {
   return (
     <p className="mt-2.5 rounded-lg bg-status-warning/8 px-3 py-2 text-xs leading-relaxed text-ink-secondary">
-      <span className="font-semibold text-status-warning">Sandbox only.</span> This connects to Plaid's test
+      <span className="font-semibold text-status-warning-text">Sandbox only.</span> This connects to Plaid's test
       environment and returns made-up transactions from a fake bank. It cannot reach a real account, and this app
       is not a regulated financial service.
     </p>

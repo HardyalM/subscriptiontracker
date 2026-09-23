@@ -29,7 +29,7 @@ export default function CancellationGuide({ commitment }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 transition hover:underline"
+        className="inline-flex items-center gap-1 text-xs font-medium text-accent-text transition hover:underline"
       >
         <IconChevronRight className={`h-3 w-3 transition ${open ? 'rotate-90' : ''}`} />
         How to stop paying for this
@@ -55,7 +55,7 @@ export default function CancellationGuide({ commitment }) {
                 href={guide.cancel_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs font-semibold text-brand-600 underline-offset-2 hover:underline"
+                className="text-xs font-semibold text-accent-text underline-offset-2 hover:underline"
               >
                 Open {guide.provider_name} →
               </a>

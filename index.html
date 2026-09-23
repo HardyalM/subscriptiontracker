@@ -14,6 +14,29 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
+    <!--
+      Applies theme, accent, density and motion before first paint. Without
+      it, a dark-mode user sees a white flash on every load while React
+      boots and reads their preference. Mirrors src/lib/appearance.jsx —
+      keep the storage keys in step.
+    -->
+    <script>
+      (function () {
+        var root = document.documentElement
+        try {
+          var get = function (k) { return localStorage.getItem('bnpl-tracker:' + k) }
+          var theme = get('theme') || 'system'
+          var dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) root.classList.add('dark')
+          root.dataset.accent = get('accent') || 'cobalt'
+          root.dataset.density = get('density') || 'spacious'
+          var motion = get('reduce-motion')
+          root.dataset.reduceMotion = motion !== null ? motion : String(matchMedia('(prefers-reduced-motion: reduce)').matches)
+        } catch (e) {
+          root.dataset.accent = 'cobalt'
+        }
+      })()
+    </script>
   </head>
   <body class="bg-surface-page">
     <div id="root"></div>

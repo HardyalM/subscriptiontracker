@@ -12,12 +12,14 @@
     "check:css": "node scripts/check-tailwind-classes.mjs"
   },
   "dependencies": {
+    "@formkit/auto-animate": "^0.10.0",
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.103.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-plaid-link": "^5.0.0",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

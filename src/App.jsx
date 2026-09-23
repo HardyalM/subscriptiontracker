@@ -5,23 +5,28 @@ import {
   useToggleCommitmentStatus,
   useRecordDecision,
   useReplaceCommitments,
-  useClearCommitments,
   useImportCommitments,
   useDeleteCommitment,
 } from './lib/commitmentQueries.js'
 import { usePendingActions } from './lib/usePendingActions.js'
+import { useHashRoute } from './lib/useHashRoute.js'
+import { notify } from './lib/notify.jsx'
 import { filterAndSortCommitments, DEFAULT_FILTERS, hasActiveFilters } from './lib/commitmentFilters.js'
-import { getRenewalCheckpointItems } from './lib/calculations.js'
+import { getRenewalCheckpointItems, applyKeepDecision, exposureFor, formatGBP } from './lib/calculations.js'
+import { formatShortDate } from './lib/format.js'
 import { notifyIfDue } from './lib/notifications.js'
 import { buildDemoCommitments } from './lib/demoData.js'
 
-import { IconPlus, IconUpload, IconCamera } from './components/Icon.jsx'
+import { IconPlus, IconUpload, IconCamera, IconLayout, IconGear, IconWallet, IconSearch } from './components/Icon.jsx'
 import AppShell, { SectionHeading } from './components/shell/AppShell.jsx'
 import UserMenu from './components/shell/UserMenu.jsx'
 import StatGrid from './components/dashboard/StatGrid.jsx'
 import ReviewQueue from './components/dashboard/ReviewQueue.jsx'
 import CommitmentTable from './components/dashboard/CommitmentTable.jsx'
 import { StatGridSkeleton, TableSkeleton, ReviewQueueSkeleton } from './components/dashboard/Skeletons.jsx'
+import SettingsPage from './components/settings/SettingsPage.jsx'
+import Button from './components/ui/Button.jsx'
+import EmptyState from './components/ui/EmptyState.jsx'
 
 import CategoryBreakdown from './components/CategoryBreakdown.jsx'
 import ExportButton from './components/ExportButton.jsx'
@@ -29,7 +34,6 @@ import CommitmentForm from './components/CommitmentForm.jsx'
 import Modal from './components/Modal.jsx'
 import ConfirmDialog from './components/ConfirmDialog.jsx'
 import ImportLocalData from './components/ImportLocalData.jsx'
-import WriteFeedback from './components/WriteFeedback.jsx'
 import CommitmentFilters from './components/manage/CommitmentFilters.jsx'
 import CsvImport from './components/manage/CsvImport.jsx'
 import ReceiptImport from './components/receipts/ReceiptImport.jsx'
@@ -40,12 +44,14 @@ import CalendarMonth from './components/calendar/CalendarMonth.jsx'
 import CashFlowForecast from './components/calendar/CashFlowForecast.jsx'
 
 export default function App() {
+  const { segments, navigate } = useHashRoute()
+  const view = segments[0] === 'settings' ? 'settings' : 'dashboard'
+
   const { data: commitments = [], isPending, isError, refetch } = useCommitments()
   const saveCommitment = useSaveCommitment()
   const toggleStatus = useToggleCommitmentStatus()
   const recordDecision = useRecordDecision()
   const replaceCommitments = useReplaceCommitments()
-  const clearCommitments = useClearCommitments()
   const importCommitments = useImportCommitments()
   const deleteCommitment = useDeleteCommitment()
   const pending = usePendingActions()
@@ -60,7 +66,6 @@ export default function App() {
   const [prefillDraft, setPrefillDraft] = useState(null)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [confirmClear, setConfirmClear] = useState(false)
 
   const editingCommitment = commitments.find((c) => c.id === editingId) || null
 
@@ -78,7 +83,8 @@ export default function App() {
       bnpl: ordered.filter((c) => c.type === 'bnpl'),
     }
   }, [visible])
-  const filtered = commitments.length > 0 && hasActiveFilters(filters)
+  const hasData = commitments.length > 0
+  const filtered = hasData && hasActiveFilters(filters)
 
   // Browser reminders — only fires while this tab is open (see
   // src/lib/notifications.js for the honest caveat on what this can and
@@ -87,18 +93,33 @@ export default function App() {
     notifyIfDue(getRenewalCheckpointItems(commitments))
   }, [commitments])
 
+  // ── Writes ──────────────────────────────────────────────────────────
+  //
+  // Every write ends in a toast. Success is brief; failure stays until it
+  // is dismissed, and offers "Try again" only where retrying could work
+  // (see src/lib/notify.jsx).
+  //
+  // Two writes report failure in place instead of in a toast: the form and
+  // the delete confirmation. Both are dialogs the user is looking straight
+  // at, and both stay open on failure, so the error belongs beside the
+  // button they just pressed rather than in a corner behind a backdrop.
+
   // Awaited on purpose. Closing the modal before the write lands means a
   // failure silently discards everything the user typed, with the form gone
   // and nothing to explain it.
   async function handleSave(record) {
-    const payload = editingCommitment ? { ...record, id: editingCommitment.id } : { ...record, id: null }
+    const isEdit = Boolean(editingCommitment)
+    const payload = isEdit ? { ...record, id: editingCommitment.id } : { ...record, id: null }
     try {
       await saveCommitment.mutateAsync(payload)
     } catch {
-      // Surfaced through saveCommitment.error, passed into the form below.
+      // Shown inside the form, from saveCommitment.error.
       return
     }
     closeForm()
+    notify.success(isEdit ? 'Changes saved' : `${record.name} added`, {
+      description: isEdit ? undefined : `Now counted in your totals.`,
+    })
   }
 
   function closeForm() {
@@ -113,84 +134,173 @@ export default function App() {
     setShowForm(true)
   }
 
-  function handleLoadDemo() {
-    replaceCommitments.mutate(buildDemoCommitments())
-  }
-
-  function handleClearAll() {
-    if (commitments.length === 0) return
-    setConfirmClear(true)
-  }
-
   // Each action is keyed to what was actually pressed, so its spinner lands
-  // on that row and a second tap can't fire it twice. Failures are shown by
-  // WriteFeedback from the mutation's own error state; the catch only stops
-  // them also surfacing as unhandled rejections.
-  function handleToggleStatus(commitment) {
-    pending.run(`row:${commitment.id}`, () => toggleStatus.mutateAsync(commitment)).catch(() => {})
+  // on that row and a second tap can't fire it twice.
+  async function handleToggleStatus(commitment) {
+    const cancelling = commitment.status === 'active'
+    try {
+      await pending.run(`row:${commitment.id}`, () => toggleStatus.mutateAsync(commitment))
+    } catch (error) {
+      notify.error(
+        cancelling ? `Couldn't cancel ${commitment.name}` : `Couldn't reactivate ${commitment.name}`,
+        error,
+        { retry: () => handleToggleStatus(commitment) },
+      )
+      return
+    }
+    if (cancelling) {
+      notify.success(`${commitment.name} cancelled`, {
+        description: 'It no longer counts towards your totals.',
+        // Undo is the same toggle again, from the state it is in now.
+        action: { label: 'Undo', onClick: () => handleToggleStatus({ ...commitment, status: 'cancelled' }) },
+      })
+    } else {
+      notify.success(`${commitment.name} reactivated`, { description: 'Back in your totals.' })
+    }
   }
 
   // "Keep it" also moves the commitment on to its next cycle (see
   // applyKeepDecision) — that's the fix for renewal dates silently going
   // stale. Both taps log the decision with the £ amount at that moment, so
   // the running totals stay meaningful even as costs change later.
-  function handleRenewalAction(commitment, decision) {
+  async function handleRenewalAction(commitment, decision) {
     const key = `decision:${commitment.id}:${decision}`
     if (pending.isPendingPrefix(`decision:${commitment.id}:`)) return
-    pending.run(key, () => recordDecision.mutateAsync({ commitment, decision })).catch(() => {})
+    try {
+      await pending.run(key, () => recordDecision.mutateAsync({ commitment, decision }))
+    } catch (error) {
+      notify.error(`Couldn't record that decision`, error, {
+        retry: () => handleRenewalAction(commitment, decision),
+      })
+      return
+    }
+    if (decision === 'kept') {
+      const next = applyKeepDecision(commitment).nextPaymentDate
+      notify.success(`Kept ${commitment.name}`, {
+        description: next ? `Moved on to its next payment, ${formatShortDate(next)}.` : 'Logged.',
+      })
+    } else {
+      notify.success(`Reconsidering ${commitment.name}`, {
+        description: `${formatGBP(exposureFor(commitment) || 0)} added to what you've kept back.`,
+      })
+    }
+  }
+
+  async function handleDelete(commitment) {
+    // Errors propagate to ConfirmDialog, which shows them in place and
+    // stays open.
+    await pending.run(`row:${commitment.id}`, () => deleteCommitment.mutateAsync(commitment))
+    notify.success(`${commitment.name} deleted`)
+  }
+
+  async function handleImport(rows) {
+    try {
+      await importCommitments.mutateAsync(rows)
+    } catch (error) {
+      notify.error("Couldn't import that file", error, { retry: () => handleImport(rows) })
+      return
+    }
+    setShowImport(false)
+    notify.success(`Imported ${rows.length} ${rows.length === 1 ? 'commitment' : 'commitments'}`)
+  }
+
+  async function handleLoadExamples() {
+    try {
+      await replaceCommitments.mutateAsync(buildDemoCommitments())
+    } catch (error) {
+      notify.error("Couldn't load example data", error, { retry: handleLoadExamples })
+      return
+    }
+    notify.success('Example data loaded', { description: 'Replace or delete it any time in Settings.' })
   }
 
   function scrollToReview() {
     document.getElementById('review-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const pageActions = (
-    <>
-      <ExportButton commitments={commitments} />
-      <button
-        type="button"
-        onClick={() => setShowForm(true)}
-        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-sm font-semibold text-white shadow-action transition-all duration-150 hover:bg-brand-700 hover:shadow-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 active:translate-y-px"
-      >
-        <IconPlus className="h-4 w-4" />
-        Add
-      </button>
-    </>
-  )
+  const nav = [
+    { id: 'dashboard', label: 'Dashboard', icon: IconLayout, href: '#/', active: view === 'dashboard', onSelect: () => navigate('') },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: IconGear,
+      href: '#/settings/profile',
+      active: view === 'settings',
+      onSelect: () => navigate(view === 'settings' ? segments.join('/') : 'settings/profile'),
+    },
+  ]
+
+  const pageActions =
+    view === 'dashboard' ? (
+      <>
+        <ExportButton commitments={commitments} />
+        <Button variant="primary" size="toolbar" icon={<IconPlus className="h-4 w-4" />} onClick={() => setShowForm(true)}>
+          Add
+        </Button>
+      </>
+    ) : null
 
   return (
-    <AppShell
-      actions={pageActions}
-      menu={
-        <UserMenu
-          hasCommitments={commitments.length > 0}
-          onLoadDemo={handleLoadDemo}
-          onClearAll={handleClearAll}
-        />
-      }
-    >
-      {isError ? (
-        <div className="rounded-2xl border border-status-critical/25 bg-white p-6 shadow-card">
+    <AppShell actions={pageActions} nav={nav} menu={<UserMenu onOpenSettings={() => navigate('settings/profile')} />}>
+      {view === 'settings' ? (
+        <SettingsPage section={segments[1]} onNavigate={navigate} />
+      ) : isError ? (
+        <div className="rounded-2xl border border-status-critical/25 bg-surface p-6 shadow-card">
           <p className="font-display text-[15px] font-bold text-ink-primary">Couldn't load your commitments</p>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
             Nothing has been lost — this is a problem reading them, not a problem with your data.
           </p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="mt-4 inline-flex h-10 items-center rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-action transition-all duration-150 hover:bg-brand-700 hover:shadow-action-hover"
-          >
+          <Button variant="primary" className="mt-4" onClick={() => refetch()}>
             Try again
-          </button>
+          </Button>
         </div>
       ) : isPending ? (
-        <div className="space-y-8">
+        <div className="space-y-10">
           <StatGridSkeleton />
           <ReviewQueueSkeleton />
           <TableSkeleton />
         </div>
-      ) : (
+      ) : !hasData ? (
         <div className="space-y-10">
+          <ImportLocalData />
+          <EmptyState
+            icon={IconWallet}
+            title="Start with what you pay for"
+            description="Add a subscription or a BNPL plan by hand, import a spreadsheet, or read one straight off a receipt. Everything you add is totalled here."
+            actions={
+              <>
+                <Button variant="primary" icon={<IconPlus className="h-4 w-4" />} onClick={() => setShowForm(true)}>
+                  Add a commitment
+                </Button>
+                <Button icon={<IconUpload className="h-4 w-4" />} onClick={() => setShowImport(true)}>
+                  Import CSV
+                </Button>
+                <Button icon={<IconCamera className="h-4 w-4" />} onClick={() => setShowReceipt(true)}>
+                  Read a receipt
+                </Button>
+              </>
+            }
+            footnote={
+              <>
+                Just looking around?{' '}
+                <button
+                  type="button"
+                  onClick={handleLoadExamples}
+                  disabled={replaceCommitments.isPending}
+                  className="focus-ring rounded font-semibold text-accent-text underline decoration-accent-text/30 underline-offset-4 transition-colors hover:decoration-accent-text disabled:cursor-wait disabled:opacity-60"
+                >
+                  {replaceCommitments.isPending ? 'Loading examples…' : 'Load example data'}
+                </button>
+              </>
+            }
+          />
+          <section>
+            <SectionHeading title="Connections" description="Optional ways to get data in without typing it." />
+            <BankSyncCard />
+          </section>
+        </div>
+      ) : (
+        <div className="space-y-10 animate-fade-in">
           <ImportLocalData />
 
           <StatGrid commitments={commitments} onReviewClick={scrollToReview} />
@@ -216,28 +326,22 @@ export default function App() {
               </div>
             </SectionHeading>
 
-            {commitments.length > 0 && (
-              <div className="mb-4">
-                <CommitmentFilters
-                  filters={filters}
-                  onChange={setFilters}
-                  shown={visible.length}
-                  total={commitments.length}
-                />
-              </div>
-            )}
+            <div className="mb-4">
+              <CommitmentFilters filters={filters} onChange={setFilters} shown={visible.length} total={commitments.length} />
+            </div>
 
             {visible.length === 0 ? (
-              <div className="flex flex-col items-center rounded-2xl border border-dashed border-ink-muted/25 bg-white/60 px-6 py-14 text-center">
-                <p className="font-display text-[15px] font-bold text-ink-primary">
-                  {filtered ? 'Nothing matches those filters' : 'No commitments yet'}
-                </p>
-                <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-ink-secondary">
-                  {filtered
-                    ? 'Clear them to see everything again.'
-                    : 'Add your first subscription or BNPL plan and it will appear here.'}
-                </p>
-              </div>
+              <EmptyState
+                compact
+                icon={IconSearch}
+                title="Nothing matches these filters"
+                description={`None of your ${commitments.length} commitments match. Try a different search, or clear the filters to see everything.`}
+                actions={
+                  filtered && (
+                    <Button onClick={() => setFilters(DEFAULT_FILTERS)}>Clear filters</Button>
+                  )
+                }
+              />
             ) : (
               <div className="space-y-5">
                 {byKind.subscriptions.length > 0 && (
@@ -289,23 +393,8 @@ export default function App() {
         </div>
       )}
 
-      <WriteFeedback
-        actions={[
-          { label: 'That change', mutation: toggleStatus },
-          { label: 'That decision', mutation: recordDecision },
-          { label: 'The example data', mutation: replaceCommitments },
-        ]}
-      />
-
       <Modal open={showImport} labelledBy="csv-import-heading" size="lg" onClose={() => setShowImport(false)}>
-        <CsvImport
-          isImporting={importCommitments.isPending}
-          onClose={() => setShowImport(false)}
-          onImport={async (rows) => {
-            await importCommitments.mutateAsync(rows)
-            setShowImport(false)
-          }}
-        />
+        <CsvImport isImporting={importCommitments.isPending} onClose={() => setShowImport(false)} onImport={handleImport} />
       </Modal>
 
       <Modal open={showReceipt} labelledBy="receipt-import-heading" onClose={() => setShowReceipt(false)}>
@@ -346,30 +435,10 @@ export default function App() {
         }
         confirmLabel="Delete"
         busyLabel="Deleting…"
-        onConfirm={() =>
-          pending.run(`row:${deleteTarget.id}`, () => deleteCommitment.mutateAsync(deleteTarget))
-        }
+        onConfirm={() => handleDelete(deleteTarget)}
         onClose={() => {
           setDeleteTarget(null)
           deleteCommitment.reset()
-        }}
-      />
-
-      <ConfirmDialog
-        open={confirmClear}
-        title="Clear all commitments?"
-        body={
-          <p>
-            This removes all {commitments.length} commitments in your account and their decision history. It
-            can't be undone.
-          </p>
-        }
-        confirmLabel="Clear everything"
-        busyLabel="Clearing…"
-        onConfirm={() => clearCommitments.mutateAsync()}
-        onClose={() => {
-          setConfirmClear(false)
-          clearCommitments.reset()
         }}
       />
     </AppShell>
@@ -381,7 +450,7 @@ function SecondaryButton({ onClick, icon, children }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-ink-muted/20 bg-white px-3 text-sm font-semibold text-ink-secondary shadow-sm transition-all duration-150 hover:border-brand-500/40 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-ink-muted/20 bg-surface px-3 text-sm font-semibold text-ink-secondary shadow-sm transition-all duration-150 hover:border-accent/40 hover:bg-accent-soft hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
     >
       {icon}
       <span className="hidden sm:inline">{children}</span>

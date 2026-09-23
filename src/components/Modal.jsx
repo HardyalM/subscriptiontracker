@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { usePresence } from '../lib/usePresence.js'
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -13,6 +14,12 @@ const FOCUSABLE =
  * page behind, and closing drops focus onto <body> — both of which a
  * keyboard user notices immediately.
  *
+ * It animates out as well as in. Closing keeps the sheet mounted for one
+ * short exit animation (see usePresence), showing the content it had at the
+ * moment it closed: the parent has usually already cleared whatever the
+ * dialog was about — the row being deleted, the record being edited — and
+ * without that snapshot the title would blank out mid-animation.
+ *
  * `size` widens it for content like the CSV preview table; the default suits
  * a form.
  */
@@ -20,6 +27,10 @@ export default function Modal({ open, onClose, labelledBy, size = 'md', children
   const panelRef = useRef(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+
+  const { mounted, exiting, onAnimationEnd } = usePresence(open, 200)
+  const lastChildren = useRef(children)
+  if (open) lastChildren.current = children
 
   useEffect(() => {
     if (!open) return undefined
@@ -66,13 +77,15 @@ export default function Modal({ open, onClose, labelledBy, size = 'md', children
     }
   }, [open])
 
-  if (!open) return null
+  if (!mounted) return null
 
   const width = size === 'lg' ? 'max-w-2xl' : size === 'sm' ? 'max-w-md' : 'max-w-lg'
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink-primary/30 px-4 py-10 backdrop-blur-[3px] animate-fade-in sm:items-center"
+      className={`fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-ink-primary/30 px-4 py-10 backdrop-blur-[3px] sm:items-center dark:bg-black/55 ${
+        exiting ? 'pointer-events-none animate-fade-out' : 'animate-fade-in'
+      }`}
       onMouseDown={(e) => {
         // mousedown, not click: a drag that starts inside a field and ends
         // on the backdrop would otherwise close the dialog mid-selection.
@@ -84,9 +97,10 @@ export default function Modal({ open, onClose, labelledBy, size = 'md', children
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`w-full ${width} animate-sheet-in`}
+        onAnimationEnd={onAnimationEnd}
+        className={`w-full ${width} ${exiting ? 'animate-sheet-out' : 'animate-sheet-in'}`}
       >
-        {children}
+        {open ? children : lastChildren.current}
       </div>
     </div>
   )

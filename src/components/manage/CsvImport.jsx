@@ -33,7 +33,7 @@ export default function CsvImport({ onImport, isImporting, onClose }) {
   const canImport = result && result.valid.length > 0
 
   return (
-    <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-ink-muted/12 bg-white shadow-raised">
+    <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-ink-muted/12 bg-surface shadow-raised">
       <div className="flex items-center justify-between gap-3 border-b border-ink-muted/10 px-5 py-4 sm:px-6">
         <h2 id="csv-import-heading" className="text-sm font-semibold text-ink-primary">
           Import from CSV
@@ -58,7 +58,7 @@ export default function CsvImport({ onImport, isImporting, onClose }) {
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-6 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-brand-50/60 hover:text-brand-600"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-muted/25 py-6 text-sm font-semibold text-ink-secondary transition hover:border-brand-500 hover:bg-accent-soft/60 hover:text-accent-text"
             >
               <IconUpload className="h-4 w-4" />
               Choose a CSV file
@@ -71,7 +71,7 @@ export default function CsvImport({ onImport, isImporting, onClose }) {
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
             {readError && (
-              <p role="alert" className="rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical">
+              <p role="alert" className="rounded-lg bg-status-critical/8 px-3 py-2 text-sm text-status-critical-text">
                 {readError}
               </p>
             )}
@@ -94,7 +94,7 @@ export default function CsvImport({ onImport, isImporting, onClose }) {
                 {result.valid.length} {result.valid.length === 1 ? 'row' : 'rows'} ready
               </span>
               {result.invalid.length > 0 && (
-                <span className="font-semibold text-status-critical">
+                <span className="font-semibold text-status-critical-text">
                   {result.invalid.length} won't import
                 </span>
               )}
@@ -127,7 +127,7 @@ export default function CsvImport({ onImport, isImporting, onClose }) {
 
             {result.invalid.length > 0 && (
               <div className="rounded-xl border border-status-critical/25 bg-status-critical/5 px-3 py-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-status-critical">Skipped</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-status-critical-text">Skipped</p>
                 <ul className="mt-1.5 space-y-1">
                   {result.invalid.map((row) => (
                     <li key={row.line} className="text-sm text-ink-secondary">
@@ -144,7 +144,7 @@ export default function CsvImport({ onImport, isImporting, onClose }) {
                 type="button"
                 disabled={!canImport || isImporting}
                 onClick={() => onImport(result.valid)}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-card transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg shadow-card transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <IconCheck className="h-4 w-4" />
                 {isImporting
