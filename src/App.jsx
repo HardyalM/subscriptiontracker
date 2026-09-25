@@ -386,10 +386,6 @@ export default function App() {
             <BankSyncCard />
           </section>
 
-          <footer className="border-t border-ink-muted/10 pt-6 text-center text-xs leading-relaxed text-ink-secondary">
-            <p>Your commitments are stored in your own account. This app is not connected to any bank.</p>
-            <p className="mt-1 text-ink-secondary/70">Not financial advice.</p>
-          </footer>
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { validateAuthForm, describeAuthError } from '../../lib/authValidation.js'
 import { useSession } from '../../lib/session.jsx'
+import BuiltBy from '../shell/BuiltBy.jsx'
 import { IconLogo, IconCheck, IconSpinner, IconEye, IconEyeOff, IconShield } from '../Icon.jsx'
 
 /**
@@ -225,8 +226,11 @@ function Shell({ children }) {
     <div className="min-h-screen bg-surface-page lg:grid lg:grid-cols-[1.05fr_1fr]">
       <BrandPanel />
 
-      <div className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:min-h-0">
-        <div className="w-full max-w-[26rem]">
+      {/* A column so the credit can sit at the foot of the page, level with
+          the disclaimer at the foot of the brand panel, while the form
+          stays centred in the space above it. */}
+      <div className="flex min-h-screen flex-col px-6 sm:px-10 lg:min-h-0">
+        <div className="mx-auto flex w-full max-w-[26rem] flex-1 flex-col justify-center py-12">
           {/* The mark repeats here for small screens, where the brand panel
               is not rendered at all. */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
@@ -240,6 +244,8 @@ function Shell({ children }) {
 
           {children}
         </div>
+
+        <BuiltBy className="mx-auto w-full max-w-[26rem] border-t border-ink-muted/10 pb-8 pt-5 text-center lg:pb-14" />
       </div>
     </div>
   )

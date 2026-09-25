@@ -1,4 +1,5 @@
 import { IconLogo } from '../Icon.jsx'
+import BuiltBy from './BuiltBy.jsx'
 
 /**
  * The application shell: a sticky top bar and a centred content column.
@@ -55,7 +56,21 @@ export default function AppShell({ actions, menu, nav = [], children }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6 lg:px-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">{children}</main>
+
+      {/* One footer for every page in the app: what the app is not, then
+          who made it. The disclaimer used to live only at the foot of the
+          populated dashboard, so Settings and the empty state went
+          without it. */}
+      <footer className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="border-t border-ink-muted/10 pb-10 pt-6 text-center">
+          <p className="text-xs leading-relaxed text-ink-secondary">
+            Your commitments are stored in your own account. This app is not connected to any bank. Not financial
+            advice.
+          </p>
+          <BuiltBy className="mt-2" />
+        </div>
+      </footer>
     </div>
   )
 }
