@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { validateAuthForm, describeAuthError } from '../../lib/authValidation.js'
 import { useSession } from '../../lib/session.jsx'
 import BuiltBy from '../shell/BuiltBy.jsx'
+import ProductPreview from './ProductPreview.jsx'
 import { IconLogo, IconCheck, IconSpinner, IconEye, IconEyeOff, IconShield } from '../Icon.jsx'
 
 /**
@@ -252,21 +253,23 @@ function Shell({ children }) {
 }
 
 /**
- * The argument, not decoration. A monthly price restated annually is the
- * single idea this product exists to deliver, so the panel simply performs
- * it rather than describing it.
+ * The argument, then the evidence. A monthly price restated annually is
+ * the single idea this product exists to deliver, so the panel performs it
+ * in one line — then shows the dashboard that does it for everything you
+ * pay for, running off the edge of the panel as if it continues there.
  */
 function BrandPanel() {
   return (
-    <div className="relative hidden overflow-hidden bg-brand-800 lg:flex lg:flex-col lg:justify-between lg:p-14">
-      {/* Depth without noise: two soft radial lights and a hairline grid,
-          all at very low opacity. */}
+    <div className="relative hidden flex-col overflow-hidden bg-brand-800 lg:flex">
+      {/* Depth without noise: soft radial lights — one behind the copy, one
+          behind the product shot — and a hairline grid, all at very low
+          opacity. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(60rem 40rem at 15% 0%, rgb(var(--brand-300) / 0.22), transparent 60%), radial-gradient(40rem 30rem at 90% 100%, rgb(var(--brand-500) / 0.28), transparent 55%)',
+            'radial-gradient(60rem 40rem at 15% 0%, rgb(var(--brand-300) / 0.22), transparent 60%), radial-gradient(44rem 34rem at 78% 78%, rgb(var(--brand-500) / 0.34), transparent 60%)',
         }}
       />
       <div
@@ -276,10 +279,12 @@ function BrandPanel() {
           backgroundImage:
             'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
           backgroundSize: '56px 56px',
+          maskImage: 'radial-gradient(ellipse 80% 70% at 30% 25%, black, transparent)',
+          WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 30% 25%, black, transparent)',
         }}
       />
 
-      <div className="relative flex items-center gap-3">
+      <div className="relative flex items-center gap-3 px-14 pt-14">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/12 text-white ring-1 ring-inset ring-white/20 backdrop-blur">
           <IconLogo className="h-5 w-5" />
         </div>
@@ -288,41 +293,48 @@ function BrandPanel() {
         </span>
       </div>
 
-      <div className="relative max-w-md">
+      <div className="relative mt-10 max-w-xl px-14 [@media(min-height:1000px)]:mt-14">
         <h1 className="font-display text-[2.6rem] font-extrabold leading-[1.08] tracking-tight text-white">
           Small payments,
           <br />
           <span className="text-brand-200">honestly totalled.</span>
         </h1>
-        <p className="mt-5 text-[17px] leading-relaxed text-brand-100/80">
+        <p className="mt-4 max-w-md text-[17px] leading-relaxed text-brand-100/80">
           £12.99 a month doesn't feel like much. Seen as a year, it argues with you.
         </p>
 
-        {/* The reframe, performed. */}
-        <div className="mt-9 w-full max-w-sm rounded-2xl border border-white/12 bg-white/[0.07] p-5 backdrop-blur-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-200/80">
-            One streaming service
-          </p>
-          <div className="mt-3 flex items-baseline gap-2.5">
-            <span className="tabular font-display text-2xl font-bold text-white/55 line-through decoration-white/40 decoration-2">
-              £12.99
-            </span>
-            <span className="text-sm text-brand-100/70">a month</span>
+        {/* The reframe, performed in one line. Dropped on screens shorter
+            than 960px, where the room is better spent on the dashboard
+            below, which makes the same point. */}
+        <div className="mt-7 hidden items-center gap-5 rounded-2xl border border-white/12 bg-white/[0.07] px-5 py-3.5 backdrop-blur-sm [@media(min-height:960px)]:inline-flex">
+          <div>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-brand-200/80">One streaming service</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span className="tabular font-display text-xl font-bold text-white/55 line-through decoration-white/40 decoration-2">
+                £12.99
+              </span>
+              <span className="text-[13px] text-brand-100/70">a month</span>
+            </p>
           </div>
-          <div className="mt-2 flex items-baseline gap-2.5">
-            <span className="tabular font-display text-[2.1rem] font-extrabold leading-none tracking-tight text-white">
-              £155.88
-            </span>
-            <span className="text-sm font-medium text-brand-100">a year</span>
+          <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-brand-300" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 10h11m0 0l-4-4m4 4l-4 4" />
+          </svg>
+          <div>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-brand-200/80">Seen as a year</p>
+            <p className="mt-1 flex items-baseline gap-1.5">
+              <span className="tabular font-display text-[1.6rem] font-extrabold leading-none tracking-tight text-white">
+                £155.88
+              </span>
+              <span className="text-[13px] font-medium text-brand-100">a year</span>
+            </p>
           </div>
-          <div className="mt-4 h-px w-full bg-white/10" />
-          <p className="mt-3.5 text-[13px] leading-relaxed text-brand-100/70">
-            Every commitment shows both figures, side by side — always.
-          </p>
         </div>
       </div>
 
-      <p className="relative text-[13px] text-brand-200/85">
+      <ProductPreview className="relative mt-9 min-h-[14rem] flex-1" />
+
+      {/* Level with the credit at the foot of the form column. */}
+      <p className="absolute bottom-14 left-14 z-10 text-[13px] text-brand-200/85">
         Not connected to any bank. Not financial advice.
       </p>
     </div>
