@@ -10,9 +10,14 @@ export const AUTHOR = {
   linkedin: 'https://www.linkedin.com/in/hardy-mahal-371442252/',
 }
 
-export default function BuiltBy({ className = '' }) {
+// A prop rather than a className override: two arbitrary font sizes on one
+// element would leave the winner to Tailwind's stylesheet order. `md` stays
+// at 13px on phones, where 14px wraps the line in two.
+const SIZES = { sm: 'text-[13px]', md: 'text-[13px] sm:text-sm' }
+
+export default function BuiltBy({ size = 'sm', className = '' }) {
   return (
-    <p className={`text-[13px] leading-relaxed text-ink-secondary ${className}`}>
+    <p className={`${SIZES[size]} leading-relaxed text-ink-secondary ${className}`}>
       Designed and built by <span className="font-semibold text-ink-primary">{AUTHOR.name}</span>
       <span aria-hidden="true"> · </span>
       <a

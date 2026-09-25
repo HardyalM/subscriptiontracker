@@ -245,7 +245,7 @@ function Shell({ children }) {
           {children}
         </div>
 
-        <BuiltBy className="mx-auto w-full max-w-[26rem] border-t border-ink-muted/10 pb-8 pt-5 text-center lg:pb-14" />
+        <BuiltBy size="md" className="mx-auto w-full max-w-[26rem] border-t border-ink-muted/10 pb-8 pt-5 text-center lg:pb-14" />
       </div>
     </div>
   )
