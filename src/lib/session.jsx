@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
+import { authRedirectUrl } from './authCallback.js'
 
 /**
  * The app's one piece of global state, per the v2 architecture rules:
@@ -120,10 +121,11 @@ export function SessionProvider({ children }) {
         // origin makes the link follow wherever the app is actually served,
         // in dev and in production alike.
         //
-        // Supabase still checks this against the project's allow-list, so
-        // the origin must also be listed under Authentication → URL
-        // Configuration.
-        emailRedirectTo: `${window.location.origin}/`,
+        // It lands on /auth/callback (see AuthCallback.jsx), which finishes
+        // the sign-in and cleans the URL. Supabase still checks this against
+        // the project's allow-list, so it must also be listed under
+        // Authentication → URL Configuration.
+        emailRedirectTo: authRedirectUrl(),
       },
     })
     if (error) return { error, needsConfirmation: false }

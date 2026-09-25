@@ -21,6 +21,19 @@
       keep the storage keys in step.
     -->
     <script>
+      // Session tokens in the URL are removed before anything paints or any
+      // app code runs. Only confirmation links sent before the switch to
+      // PKCE carry them (#access_token=…&refresh_token=…); the PKCE client
+      // rejects that format anyway, so dropping them loses nothing — the
+      // person just signs in. Replaced in place, so the tokens don't stay
+      // in back-history either.
+      (function () {
+        if (/[#&](access_token|refresh_token|provider_token)=/.test(location.hash)) {
+          history.replaceState(null, '', location.pathname + location.search)
+        }
+      })()
+    </script>
+    <script>
       (function () {
         var root = document.documentElement
         try {

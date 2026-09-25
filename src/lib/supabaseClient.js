@@ -25,6 +25,12 @@ export const isSupabaseConfigured = Boolean(url && anonKey)
 export const supabase = isSupabaseConfigured
   ? createClient(url, anonKey, {
       auth: {
+        // PKCE, not the implicit default. An emailed link then returns a
+        // single-use ?code= that is exchanged for a session behind the
+        // scenes, so access and refresh tokens never appear in the URL —
+        // and so never reach history, screenshots or screen shares.
+        // src/components/auth/AuthCallback.jsx handles the landing.
+        flowType: 'pkce',
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
